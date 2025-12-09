@@ -67,12 +67,14 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem('authToken')
   
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next({ name: 'login' })
-  } else if (to.name === 'login' && isAuthenticated) {
-    next({ name: 'dashboard' })
-  } else {
-    next()
+    return next({ name: 'login' })
   }
+
+  if (to.name === 'login' && isAuthenticated) {
+    return next({ name: 'dashboard' })
+  }
+
+  return next()
 })
 
 export default router

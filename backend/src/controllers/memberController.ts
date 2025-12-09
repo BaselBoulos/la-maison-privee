@@ -1,12 +1,16 @@
 import { Request, Response } from 'express'
-import { mockMembers } from '../data/mockData'
+import { mockMembers, mockEvents } from '../data/mockData'
 import { calculateTier, calculateAttendanceCount } from '../utils/tierCalculator'
+import { getClubId } from '../utils/club'
 
 export const getMembers = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { interests, city, email, name, status } = req.query
     
-    let filtered = [...mockMembers]
+    // Scope by club
+    let filtered = mockMembers.filter(m => m.clubId === clubId)
+    const events = mockEvents.filter(e => e.clubId === clubId)
     
     if (interests) {
       const interestArray = Array.isArray(interests) ? interests : [interests]
@@ -39,8 +43,8 @@ export const getMembers = async (req: Request, res: Response) => {
     
     // Calculate tier based on attendance for each member
     const membersWithTier = filtered.map(member => {
-      const attendanceCount = calculateAttendanceCount(member.id)
-      const tier = calculateTier(member.id)
+      const attendanceCount = calculateAttendanceCount(member.id, events)
+      const tier = calculateTier(member.id, events)
       return {
         ...member,
         tier,
@@ -59,9 +63,11 @@ export const getMembers = async (req: Request, res: Response) => {
 
 export const getFilteredMembers = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { interests, cities, status } = req.query
     
-    let filtered = [...mockMembers]
+    let filtered = mockMembers.filter(m => m.clubId === clubId)
+    const events = mockEvents.filter(e => e.clubId === clubId)
     
     if (interests) {
       const interestArray = Array.isArray(interests) ? interests : [interests]
@@ -85,7 +91,7 @@ export const getFilteredMembers = async (req: Request, res: Response) => {
     // Calculate tier based on attendance for each member
     const membersWithTier = filtered.map(member => ({
       ...member,
-      tier: calculateTier(member.id)
+      tier: calculateTier(member.id, events)
     }))
     
     res.json(membersWithTier)
@@ -96,7 +102,8 @@ export const getFilteredMembers = async (req: Request, res: Response) => {
 
 export const getMember = async (req: Request, res: Response) => {
   try {
-    const member = mockMembers.find(m => m.id === req.params.id)
+    const clubId = getClubId(req)
+    const member = mockMembers.find(m => m.id === req.params.id && m.clubId === clubId)
     
     if (!member) {
       return res.status(404).json({ message: 'Member not found' })
@@ -105,7 +112,7 @@ export const getMember = async (req: Request, res: Response) => {
     // Calculate tier based on attendance
     const memberWithTier = {
       ...member,
-      tier: calculateTier(member.id)
+      tier: calculateTier(member.id, mockEvents.filter(e => e.clubId === clubId))
     }
     
     res.json(memberWithTier)
@@ -116,7 +123,8 @@ export const getMember = async (req: Request, res: Response) => {
 
 export const updateMember = async (req: Request, res: Response) => {
   try {
-    const memberIndex = mockMembers.findIndex(m => m.id === req.params.id)
+    const clubId = getClubId(req)
+    const memberIndex = mockMembers.findIndex(m => m.id === req.params.id && m.clubId === clubId)
     
     if (memberIndex === -1) {
       return res.status(404).json({ message: 'Member not found' })
@@ -132,7 +140,8 @@ export const updateMember = async (req: Request, res: Response) => {
 
 export const deleteMember = async (req: Request, res: Response) => {
   try {
-    const memberIndex = mockMembers.findIndex(m => m.id === req.params.id)
+    const clubId = getClubId(req)
+    const memberIndex = mockMembers.findIndex(m => m.id === req.params.id && m.clubId === clubId)
     
     if (memberIndex === -1) {
       return res.status(404).json({ message: 'Member not found' })

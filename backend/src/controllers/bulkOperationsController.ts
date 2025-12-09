@@ -1,9 +1,11 @@
 import { Request, Response } from 'express'
-import { mockMembers } from '../data/mockData'
+import { mockMembers, type Member } from '../data/mockData'
+import { getClubId } from '../utils/club'
 
 // Bulk update member status
 export const bulkUpdateStatus = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds, status } = req.body
     
     if (!Array.isArray(memberIds) || !status) {
@@ -14,11 +16,11 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid status. Must be active, inactive, or invited.' })
     }
     
-    const updatedMembers = []
-    const notFound = []
+    const updatedMembers: Member[] = []
+    const notFound: string[] = []
     
     memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id)
+      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
       if (memberIndex !== -1) {
         mockMembers[memberIndex].status = status as 'active' | 'inactive' | 'invited'
         updatedMembers.push(mockMembers[memberIndex])
@@ -41,17 +43,18 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
 // Bulk assign interests
 export const bulkAssignInterests = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds, interests } = req.body
     
     if (!Array.isArray(memberIds) || !Array.isArray(interests)) {
       return res.status(400).json({ message: 'Invalid request. memberIds and interests must be arrays.' })
     }
     
-    const updatedMembers = []
-    const notFound = []
+    const updatedMembers: Member[] = []
+    const notFound: string[] = []
     
     memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id)
+      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
       if (memberIndex !== -1) {
         // Merge interests, avoiding duplicates
         const existingInterests = mockMembers[memberIndex].interests || []
@@ -77,17 +80,18 @@ export const bulkAssignInterests = async (req: Request, res: Response) => {
 // Bulk remove interests
 export const bulkRemoveInterests = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds, interests } = req.body
     
     if (!Array.isArray(memberIds) || !Array.isArray(interests)) {
       return res.status(400).json({ message: 'Invalid request. memberIds and interests must be arrays.' })
     }
     
-    const updatedMembers = []
-    const notFound = []
+    const updatedMembers: Member[] = []
+    const notFound: string[] = []
     
     memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id)
+      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
       if (memberIndex !== -1) {
         mockMembers[memberIndex].interests = mockMembers[memberIndex].interests.filter(
           i => !interests.includes(i)
@@ -112,17 +116,18 @@ export const bulkRemoveInterests = async (req: Request, res: Response) => {
 // Bulk delete members
 export const bulkDeleteMembers = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds } = req.body
     
     if (!Array.isArray(memberIds)) {
       return res.status(400).json({ message: 'Invalid request. memberIds must be an array.' })
     }
     
-    const deleted = []
-    const notFound = []
+    const deleted: string[] = []
+    const notFound: string[] = []
     
     memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id)
+      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
       if (memberIndex !== -1) {
         mockMembers.splice(memberIndex, 1)
         deleted.push(id)

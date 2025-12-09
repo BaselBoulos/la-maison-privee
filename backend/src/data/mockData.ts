@@ -13,6 +13,7 @@ export interface Member {
   invitationCode?: string
   profilePhoto?: string
   tier?: 'Standard' | 'Premium' | 'Platinum' | 'VIP' | 'Founding'
+  clubId: number
 }
 
 export interface Interest {
@@ -20,6 +21,7 @@ export interface Interest {
   name: string
   icon?: string
   enabled: boolean
+  clubId?: number
 }
 
 export interface Event {
@@ -44,6 +46,7 @@ export interface Event {
     attended: string[]
     noShow: string[]
   }
+  clubId: number
 }
 
 export interface InvitationCode {
@@ -55,7 +58,60 @@ export interface InvitationCode {
   createdAt: string
   usedAt?: string
   expiresAt?: string
+  clubId: number
 }
+
+export interface Club {
+  id: number
+  name: string
+  slug: string
+  theme: {
+    primary: string
+    accent: string
+    logo?: string
+  }
+  locale: string
+  currency: string
+}
+
+export const mockClubs: Club[] = [
+  {
+    id: 1,
+    name: 'La Maison Privée',
+    slug: 'lmp',
+    theme: {
+      primary: '#d4af37',
+      accent: '#8b2635',
+      logo: 'https://dummyimage.com/160x40/d4af37/050505&text=LMP'
+    },
+    locale: 'en-IL',
+    currency: 'ILS'
+  },
+  {
+    id: 2,
+    name: 'Gulf Privée',
+    slug: 'dxb',
+    theme: {
+      primary: '#c08b5c',
+      accent: '#0c4a6e',
+      logo: 'https://dummyimage.com/160x40/c08b5c/050505&text=DXB'
+    },
+    locale: 'en-IL',
+    currency: 'ILS'
+  },
+  {
+    id: 3,
+    name: 'Riyadh Privée',
+    slug: 'ruh',
+    theme: {
+      primary: '#c08b5c',
+      accent: '#1f2937',
+      logo: 'https://dummyimage.com/160x40/c08b5c/050505&text=RUH'
+    },
+    locale: 'en-IL',
+    currency: 'ILS'
+  }
+]
 
 // Mock Data - Members with linked invitation codes
 export const mockMembers: Member[] = [
@@ -68,7 +124,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-01-15',
     invitationCode: 'CLUB-4G8Z1',
-    profilePhoto: 'https://i.pravatar.cc/150?img=12'
+    profilePhoto: 'https://i.pravatar.cc/150?img=12',
+    clubId: 1
   },
   {
     id: '2',
@@ -79,7 +136,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-01-20',
     invitationCode: 'CLUB-7H2K9',
-    profilePhoto: 'https://i.pravatar.cc/150?img=47'
+    profilePhoto: 'https://i.pravatar.cc/150?img=47',
+    clubId: 1
   },
   {
     id: '3',
@@ -90,7 +148,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-01',
     invitationCode: 'CLUB-9M3P2',
-    profilePhoto: 'https://i.pravatar.cc/150?img=33'
+    profilePhoto: 'https://i.pravatar.cc/150?img=33',
+    clubId: 1
   },
   {
     id: '4',
@@ -101,7 +160,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-10',
     invitationCode: 'CLUB-5N4Q8',
-    profilePhoto: 'https://i.pravatar.cc/150?img=13'
+    profilePhoto: 'https://i.pravatar.cc/150?img=13',
+    clubId: 2
   },
   {
     id: '5',
@@ -112,7 +172,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-15',
     invitationCode: 'CLUB-8R2T6',
-    profilePhoto: 'https://i.pravatar.cc/150?img=51'
+    profilePhoto: 'https://i.pravatar.cc/150?img=51',
+    clubId: 2
   },
   {
     id: '6',
@@ -123,7 +184,8 @@ export const mockMembers: Member[] = [
     status: 'invited',
     joinedDate: '2025-02-20',
     invitationCode: 'CLUB-3V7W1',
-    profilePhoto: 'https://i.pravatar.cc/150?img=45'
+    profilePhoto: 'https://i.pravatar.cc/150?img=45',
+    clubId: 2
   },
   {
     id: '7',
@@ -134,7 +196,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-01-25',
     invitationCode: 'CLUB-6X9Y4',
-    profilePhoto: 'https://i.pravatar.cc/150?img=68'
+    profilePhoto: 'https://i.pravatar.cc/150?img=68',
+    clubId: 1
   },
   {
     id: '8',
@@ -145,7 +208,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-05',
     invitationCode: 'CLUB-2Z5A7',
-    profilePhoto: 'https://i.pravatar.cc/150?img=32'
+    profilePhoto: 'https://i.pravatar.cc/150?img=32',
+    clubId: 1
   },
   {
     id: '9',
@@ -156,7 +220,8 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-12',
     invitationCode: 'CLUB-1B3C9',
-    profilePhoto: 'https://i.pravatar.cc/150?img=15'
+    profilePhoto: 'https://i.pravatar.cc/150?img=15',
+    clubId: 2
   },
   {
     id: '10',
@@ -167,19 +232,131 @@ export const mockMembers: Member[] = [
     status: 'active',
     joinedDate: '2025-02-18',
     invitationCode: 'CLUB-4D6E2',
-    profilePhoto: 'https://i.pravatar.cc/150?img=20'
+    profilePhoto: 'https://i.pravatar.cc/150?img=20',
+    clubId: 1
+  },
+  // New La Maison Privée members
+  {
+    id: '11',
+    name: 'Alexandre P.',
+    email: 'alexandre.paris@example.com',
+    city: 'Paris',
+    interests: ['Fine Dining', 'Art & Culture'],
+    status: 'active',
+    joinedDate: '2025-02-22',
+    invitationCode: 'LMP-1A2B3',
+    profilePhoto: 'https://i.pravatar.cc/150?img=34',
+    clubId: 1
+  },
+  {
+    id: '12',
+    name: 'Camille R.',
+    email: 'camille.r@example.com',
+    city: 'New York',
+    interests: ['Wine Tasting', 'Luxury Travel'],
+    status: 'active',
+    joinedDate: '2025-02-24',
+    invitationCode: 'LMP-4C5D6',
+    profilePhoto: 'https://i.pravatar.cc/150?img=44',
+    clubId: 1
+  },
+  {
+    id: '13',
+    name: 'Etienne L.',
+    email: 'etienne.l@example.com',
+    city: 'London',
+    interests: ['Live Music', 'Craft Cocktails'],
+    status: 'invited',
+    joinedDate: '2025-03-01',
+    invitationCode: 'LMP-7E8F9',
+    profilePhoto: 'https://i.pravatar.cc/150?img=59',
+    clubId: 1
+  },
+  // New Gulf Privée members
+  {
+    id: '14',
+    name: 'Maha A.',
+    email: 'maha.a@example.com',
+    city: 'Dubai',
+    interests: ['Luxury Travel', 'Fine Dining'],
+    status: 'active',
+    joinedDate: '2025-02-25',
+    invitationCode: 'DXB-1K2L3',
+    profilePhoto: 'https://i.pravatar.cc/150?img=61',
+    clubId: 2
+  },
+  {
+    id: '15',
+    name: 'Omar H.',
+    email: 'omar.h@example.com',
+    city: 'Dubai',
+    interests: ['Whisky / Spirits', 'Cigar Tasting'],
+    status: 'active',
+    joinedDate: '2025-02-27',
+    invitationCode: 'DXB-4M5N6',
+    profilePhoto: 'https://i.pravatar.cc/150?img=62',
+    clubId: 2
+  },
+  {
+    id: '16',
+    name: 'Nour F.',
+    email: 'nour.f@example.com',
+    city: 'Abu Dhabi',
+    interests: ['Art & Culture', 'Live Music'],
+    status: 'invited',
+    joinedDate: '2025-03-02',
+    invitationCode: 'DXB-7P8Q9',
+    profilePhoto: 'https://i.pravatar.cc/150?img=63',
+    clubId: 2
+  },
+  // New Riyadh Privée members
+  {
+    id: '17',
+    name: 'Faisal R.',
+    email: 'faisal.r@example.com',
+    city: 'Riyadh',
+    interests: ['Fine Dining', 'Luxury Travel'],
+    status: 'active',
+    joinedDate: '2025-02-21',
+    invitationCode: 'RUH-1R2S3',
+    profilePhoto: 'https://i.pravatar.cc/150?img=64',
+    clubId: 3
+  },
+  {
+    id: '18',
+    name: 'Laila K.',
+    email: 'laila.k@example.com',
+    city: 'Riyadh',
+    interests: ['Art & Culture', 'Live Music'],
+    status: 'active',
+    joinedDate: '2025-02-26',
+    invitationCode: 'RUH-4T5U6',
+    profilePhoto: 'https://i.pravatar.cc/150?img=65',
+    clubId: 3
+  },
+  {
+    id: '19',
+    name: 'Salem M.',
+    email: 'salem.m@example.com',
+    city: 'Riyadh',
+    interests: ['Cigar Tasting', 'Whisky / Spirits'],
+    status: 'invited',
+    joinedDate: '2025-03-03',
+    invitationCode: 'RUH-7V8W9',
+    profilePhoto: 'https://i.pravatar.cc/150?img=66',
+    clubId: 3
   }
 ]
 
 export const mockInterests: Interest[] = [
-  { id: '1', name: 'Wine Tasting', enabled: true },
-  { id: '2', name: 'Fine Dining', enabled: true },
-  { id: '3', name: 'Cigar Tasting', enabled: true },
-  { id: '4', name: 'Whisky / Spirits', enabled: true },
-  { id: '5', name: 'Live Music', enabled: true },
-  { id: '6', name: 'Art & Culture', enabled: true },
-  { id: '7', name: 'Craft Cocktails', enabled: true },
-  { id: '8', name: 'Luxury Travel', enabled: true }
+  { id: '1', name: 'Wine Tasting', enabled: true, clubId: 1 },
+  { id: '2', name: 'Fine Dining', enabled: true, clubId: 1 },
+  { id: '3', name: 'Cigar Tasting', enabled: true, clubId: 1 },
+  { id: '4', name: 'Whisky / Spirits', enabled: true, clubId: 2 },
+  { id: '5', name: 'Live Music', enabled: true, clubId: 2 },
+  { id: '6', name: 'Art & Culture', enabled: true, clubId: 1 },
+  { id: '7', name: 'Craft Cocktails', enabled: true, clubId: 2 },
+  { id: '8', name: 'Luxury Travel', enabled: true, clubId: 2 }
 ]
 
 export const mockInvitationCodes: InvitationCode[] = [
@@ -190,7 +367,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '1',
     assignedMemberName: 'John D.',
     createdAt: '2024-01-10',
-    usedAt: '2024-01-15'
+    usedAt: '2024-01-15',
+    clubId: 1
   },
   {
     id: '2',
@@ -199,7 +377,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '2',
     assignedMemberName: 'Maria S.',
     createdAt: '2024-01-12',
-    usedAt: '2024-01-20'
+    usedAt: '2024-01-20',
+    clubId: 1
   },
   {
     id: '3',
@@ -208,7 +387,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '3',
     assignedMemberName: 'Marid S.',
     createdAt: '2024-01-25',
-    usedAt: '2024-02-01'
+    usedAt: '2024-02-01',
+    clubId: 1
   },
   {
     id: '4',
@@ -217,7 +397,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '4',
     assignedMemberName: 'David C.',
     createdAt: '2024-02-05',
-    usedAt: '2024-02-10'
+    usedAt: '2024-02-10',
+    clubId: 2
   },
   {
     id: '5',
@@ -226,7 +407,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '5',
     assignedMemberName: 'Serish K.',
     createdAt: '2024-02-10',
-    usedAt: '2024-02-15'
+    usedAt: '2024-02-15',
+    clubId: 2
   },
   {
     id: '6',
@@ -235,7 +417,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '6',
     assignedMemberName: 'Sarah K.',
     createdAt: '2024-02-15',
-    usedAt: '2024-02-20'
+    usedAt: '2024-02-20',
+    clubId: 2
   },
   {
     id: '7',
@@ -244,7 +427,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '7',
     assignedMemberName: 'Robert M.',
     createdAt: '2024-01-20',
-    usedAt: '2024-01-25'
+    usedAt: '2024-01-25',
+    clubId: 1
   },
   {
     id: '8',
@@ -253,7 +437,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '8',
     assignedMemberName: 'Emma W.',
     createdAt: '2024-01-30',
-    usedAt: '2024-02-05'
+    usedAt: '2024-02-05',
+    clubId: 1
   },
   {
     id: '9',
@@ -262,7 +447,8 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '9',
     assignedMemberName: 'James L.',
     createdAt: '2024-02-08',
-    usedAt: '2024-02-12'
+    usedAt: '2024-02-12',
+    clubId: 2
   },
   {
     id: '10',
@@ -271,25 +457,111 @@ export const mockInvitationCodes: InvitationCode[] = [
     assignedMemberId: '10',
     assignedMemberName: 'Sophie B.',
     createdAt: '2024-02-13',
-    usedAt: '2024-02-18'
+    usedAt: '2024-02-18',
+    clubId: 1
   },
   {
     id: '11',
     code: 'VIP-938JD',
     status: 'unused',
-    createdAt: '2024-02-20'
+    createdAt: '2024-02-20',
+    clubId: 1
   },
   {
     id: '12',
     code: 'CLUB-7F8G3',
     status: 'unused',
-    createdAt: '2024-02-20'
+    createdAt: '2024-02-20',
+    clubId: 2
   },
   {
     id: '13',
     code: 'CLUB-9H1J5',
     status: 'unused',
-    createdAt: '2024-02-20'
+    createdAt: '2024-02-20',
+    clubId: 2
+  },
+  // New codes for added members
+  {
+    id: '14',
+    code: 'LMP-1A2B3',
+    status: 'unused',
+    assignedMemberId: '11',
+    assignedMemberName: 'Alexandre P.',
+    createdAt: '2025-02-20',
+    clubId: 1
+  },
+  {
+    id: '15',
+    code: 'LMP-4C5D6',
+    status: 'unused',
+    assignedMemberId: '12',
+    assignedMemberName: 'Camille R.',
+    createdAt: '2025-02-21',
+    clubId: 1
+  },
+  {
+    id: '16',
+    code: 'LMP-7E8F9',
+    status: 'unused',
+    assignedMemberId: '13',
+    assignedMemberName: 'Etienne L.',
+    createdAt: '2025-02-23',
+    clubId: 1
+  },
+  {
+    id: '17',
+    code: 'DXB-1K2L3',
+    status: 'unused',
+    assignedMemberId: '14',
+    assignedMemberName: 'Maha A.',
+    createdAt: '2025-02-22',
+    clubId: 2
+  },
+  {
+    id: '18',
+    code: 'DXB-4M5N6',
+    status: 'unused',
+    assignedMemberId: '15',
+    assignedMemberName: 'Omar H.',
+    createdAt: '2025-02-23',
+    clubId: 2
+  },
+  {
+    id: '19',
+    code: 'DXB-7P8Q9',
+    status: 'unused',
+    assignedMemberId: '16',
+    assignedMemberName: 'Nour F.',
+    createdAt: '2025-02-24',
+    clubId: 2
+  },
+  {
+    id: '20',
+    code: 'RUH-1R2S3',
+    status: 'unused',
+    assignedMemberId: '17',
+    assignedMemberName: 'Faisal R.',
+    createdAt: '2025-02-22',
+    clubId: 3
+  },
+  {
+    id: '21',
+    code: 'RUH-4T5U6',
+    status: 'unused',
+    assignedMemberId: '18',
+    assignedMemberName: 'Laila K.',
+    createdAt: '2025-02-24',
+    clubId: 3
+  },
+  {
+    id: '22',
+    code: 'RUH-7V8W9',
+    status: 'unused',
+    assignedMemberId: '19',
+    assignedMemberName: 'Salem M.',
+    createdAt: '2025-02-26',
+    clubId: 3
   }
 ]
 
@@ -313,7 +585,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    attendance: {
+      attended: ['1', '7', '8', '10', '2', '3'], // 6 members attended
+      noShow: ['4', '5']
+    },
+    clubId: 1
   },
   {
     id: '2',
@@ -332,7 +609,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    attendance: {
+      attended: ['7', '9', '1', '5', '4'], // 5 members attended
+      noShow: ['8']
+    },
+    clubId: 2
   },
   {
     id: '3',
@@ -351,7 +633,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: ['9', '10'] // James L., Sophie B. (event is full)
+    waitlist: ['9', '10'], // James L., Sophie B. (event is full)
+    attendance: {
+      attended: ['3', '4', '5', '6', '2', '8', '10', '1'], // 8 members attended
+      noShow: ['7']
+    },
+    clubId: 2
   },
   {
     id: '4',
@@ -370,7 +657,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    attendance: {
+      attended: ['2', '3', '10', '7', '8', '1'], // 6 members attended
+      noShow: ['4', '5']
+    },
+    clubId: 1
   },
   {
     id: '5',
@@ -389,7 +681,8 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: ['3', '4', '5', '7', '9', '10'] // Others on waitlist (event is full)
+    waitlist: ['3', '4', '5', '7', '9', '10'], // Others on waitlist (event is full)
+    clubId: 2
   },
   {
     id: '6',
@@ -408,7 +701,8 @@ export const mockEvents: Event[] = [
       no: ['2'], // Maria S.
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    clubId: 2
   },
   {
     id: '7',
@@ -427,7 +721,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    attendance: {
+      attended: ['1', '7', '2', '8', '10', '3'], // 6 members attended
+      noShow: ['4']
+    },
+    clubId: 1
   },
   {
     id: '8',
@@ -446,7 +745,12 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    attendance: {
+      attended: ['2', '3', '10', '7', '1'], // 5 members attended
+      noShow: ['8']
+    },
+    clubId: 1
   },
   {
     id: '9',
@@ -465,7 +769,8 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    clubId: 2
   },
   {
     id: '10',
@@ -484,7 +789,8 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    clubId: 2
   },
   {
     id: '11',
@@ -503,7 +809,8 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    clubId: 1
   },
   {
     id: '12',
@@ -522,7 +829,183 @@ export const mockEvents: Event[] = [
       no: [],
       maybe: []
     },
-    waitlist: []
+    waitlist: [],
+    clubId: 2
+  },
+  // New La Maison Privée events
+  {
+    id: '13',
+    title: 'Champagne & Caviar Evening',
+    date: '2025-03-28',
+    time: '7:30 PM',
+    location: 'Private Salon, Paris',
+    maxCapacity: 24,
+    price: 320,
+    description: 'An intimate tasting of grand cru champagnes paired with premium caviar selections.',
+    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7b?w=800&h=600&fit=crop',
+    targetInterests: ['Fine Dining', 'Wine Tasting'],
+    targetCities: ['Paris', 'London'],
+    rsvps: {
+      yes: ['1', '2', '7', '10', '11', '12'],
+      no: [],
+      maybe: ['13']
+    },
+    waitlist: [],
+    clubId: 1
+  },
+  {
+    id: '14',
+    title: 'Gallery Preview & Jazz',
+    date: '2025-04-04',
+    time: '8:00 PM',
+    location: 'Left Bank Gallery, Paris',
+    maxCapacity: 30,
+    price: 180,
+    description: 'Private preview of contemporary art followed by live jazz and champagne.',
+    image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=600&fit=crop',
+    targetInterests: ['Art & Culture', 'Live Music'],
+    targetCities: ['Paris', 'London'],
+    rsvps: {
+      yes: ['11', '12', '13', '2', '3', '7'],
+      no: [],
+      maybe: []
+    },
+    waitlist: [],
+    clubId: 1
+  },
+  // New Gulf Privée events
+  {
+    id: '15',
+    title: 'Skyline Supper Club',
+    date: '2025-03-30',
+    time: '8:30 PM',
+    location: 'Rooftop Lounge, Dubai',
+    maxCapacity: 28,
+    price: 350,
+    description: 'Fine dining under the stars with a tasting menu inspired by Gulf flavors.',
+    image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&h=600&fit=crop',
+    targetInterests: ['Fine Dining', 'Luxury Travel'],
+    targetCities: ['Dubai', 'Abu Dhabi'],
+    rsvps: {
+      yes: ['4', '5', '14', '15', '16'],
+      no: [],
+      maybe: []
+    },
+    waitlist: [],
+    clubId: 2
+  },
+  {
+    id: '16',
+    title: 'Desert Falconry & Sundowners',
+    date: '2025-04-06',
+    time: '5:00 PM',
+    location: 'Private Desert Camp, Dubai',
+    maxCapacity: 20,
+    price: 400,
+    description: 'Exclusive falconry showcase followed by sunset cocktails and mezze.',
+    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800&h=600&fit=crop',
+    targetInterests: ['Luxury Travel', 'Craft Cocktails'],
+    targetCities: ['Dubai', 'Abu Dhabi'],
+    rsvps: {
+      yes: ['4', '5', '14', '15'],
+      no: [],
+      maybe: ['16']
+    },
+    waitlist: [],
+    clubId: 2
+  },
+  // New Riyadh Privée events
+  {
+    id: '17',
+    title: 'Private Majlis Tasting',
+    date: '2025-03-29',
+    time: '7:00 PM',
+    location: 'Diplomatic Quarter, Riyadh',
+    maxCapacity: 18,
+    price: 280,
+    description: 'An evening of premium dates, Arabic coffee, and modern Saudi cuisine pairings.',
+    image: 'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?w=800&h=600&fit=crop',
+    targetInterests: ['Fine Dining'],
+    targetCities: ['Riyadh'],
+    rsvps: {
+      yes: ['17', '18'],
+      no: [],
+      maybe: ['19']
+    },
+    waitlist: [],
+    clubId: 3
+  },
+  {
+    id: '18',
+    title: 'Desert Night Music Soirée',
+    date: '2025-04-07',
+    time: '8:00 PM',
+    location: 'Private Camp, Riyadh',
+    maxCapacity: 25,
+    price: 320,
+    description: 'Live oud and jazz fusion under the stars with artisanal mocktails and canapés.',
+    image: 'https://images.unsplash.com/photo-1470229538611-16ba8c7ffbd7?w=800&h=600&fit=crop',
+    targetInterests: ['Live Music', 'Art & Culture'],
+    targetCities: ['Riyadh'],
+    rsvps: {
+      yes: ['17', '18', '19'],
+      no: [],
+      maybe: []
+    },
+    waitlist: [],
+    clubId: 3
+  },
+  // Upcoming events (future-dated) for demos
+  {
+    id: '19',
+    title: 'Winter White Gala',
+    date: '2026-01-20',
+    time: '8:00 PM',
+    location: 'Grand Ballroom, Paris',
+    maxCapacity: 150,
+    price: 650,
+    description: 'Black-tie gala featuring Michelin-starred tasting menu and live orchestra.',
+    image: 'https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?w=800&h=600&fit=crop',
+    targetInterests: ['Fine Dining', 'Art & Culture'],
+    targetCities: ['Paris', 'London'],
+    rsvps: { yes: ['1', '2', '7', '10'], no: [], maybe: ['3', '8'] },
+    waitlist: [],
+    attendance: undefined,
+    clubId: 1
+  },
+  {
+    id: '20',
+    title: 'Sky Garden Soirée',
+    date: '2026-02-05',
+    time: '7:30 PM',
+    location: 'Sky Garden, Dubai',
+    maxCapacity: 120,
+    price: 550,
+    description: 'Sunset canapés, live DJ, and signature cocktails overlooking the skyline.',
+    image: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=800&h=600&fit=crop',
+    targetInterests: ['Craft Cocktails', 'Live Music'],
+    targetCities: ['Dubai', 'Abu Dhabi'],
+    rsvps: { yes: ['4', '5', '14', '15', '16'], no: [], maybe: ['9'] },
+    waitlist: [],
+    attendance: undefined,
+    clubId: 2
+  },
+  {
+    id: '21',
+    title: 'Desert Stargazing Retreat',
+    date: '2026-03-12',
+    time: '6:30 PM',
+    location: 'Private Camp, Riyadh',
+    maxCapacity: 60,
+    price: 480,
+    description: 'Astronomy-led stargazing, oud music, and Bedouin-inspired fine dining.',
+    image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=600&fit=crop',
+    targetInterests: ['Luxury Travel', 'Art & Culture', 'Live Music'],
+    targetCities: ['Riyadh'],
+    rsvps: { yes: ['17', '18'], no: [], maybe: ['19'] },
+    waitlist: [],
+    attendance: undefined,
+    clubId: 3
   }
 ]
 

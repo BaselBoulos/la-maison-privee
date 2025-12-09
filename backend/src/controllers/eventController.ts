@@ -1,13 +1,17 @@
 import { Request, Response } from 'express'
 import { mockEvents, mockMembers } from '../data/mockData'
+import { getClubId } from '../utils/club'
 
 export const getEvents = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const now = new Date()
     now.setHours(0, 0, 0, 0) // Reset time to compare dates only
     
     // Sort events: upcoming first, then past events
-    const sortedEvents = [...mockEvents].sort((a, b) => {
+    const sortedEvents = mockEvents
+      .filter(e => e.clubId === clubId)
+      .sort((a, b) => {
       const dateA = new Date(a.date)
       dateA.setHours(0, 0, 0, 0)
       const dateB = new Date(b.date)
@@ -33,7 +37,8 @@ export const getEvents = async (req: Request, res: Response) => {
 
 export const getEvent = async (req: Request, res: Response) => {
   try {
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const clubId = getClubId(req)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -47,6 +52,7 @@ export const getEvent = async (req: Request, res: Response) => {
 
 export const createEvent = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const newEvent = {
       id: String(mockEvents.length + 1),
       ...req.body,
@@ -55,7 +61,8 @@ export const createEvent = async (req: Request, res: Response) => {
         no: [],
         maybe: []
       },
-      waitlist: []
+      waitlist: [],
+      clubId
     }
     
     mockEvents.push(newEvent)
@@ -68,7 +75,8 @@ export const createEvent = async (req: Request, res: Response) => {
 
 export const updateEvent = async (req: Request, res: Response) => {
   try {
-    const eventIndex = mockEvents.findIndex(e => e.id === req.params.id)
+    const clubId = getClubId(req)
+    const eventIndex = mockEvents.findIndex(e => e.id === req.params.id && e.clubId === clubId)
     
     if (eventIndex === -1) {
       return res.status(404).json({ message: 'Event not found' })
@@ -84,7 +92,8 @@ export const updateEvent = async (req: Request, res: Response) => {
 
 export const deleteEvent = async (req: Request, res: Response) => {
   try {
-    const eventIndex = mockEvents.findIndex(e => e.id === req.params.id)
+    const clubId = getClubId(req)
+    const eventIndex = mockEvents.findIndex(e => e.id === req.params.id && e.clubId === clubId)
     
     if (eventIndex === -1) {
       return res.status(404).json({ message: 'Event not found' })
@@ -100,13 +109,14 @@ export const deleteEvent = async (req: Request, res: Response) => {
 
 export const addRSVP = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId, response } = req.body // response: 'yes', 'no', or 'maybe'
     
     if (!['yes', 'no', 'maybe'].includes(response)) {
       return res.status(400).json({ message: 'Invalid RSVP response' })
     }
     
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -143,9 +153,10 @@ export const addRSVP = async (req: Request, res: Response) => {
 
 export const addToWaitlist = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId } = req.body
     
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -167,9 +178,10 @@ export const addToWaitlist = async (req: Request, res: Response) => {
 
 export const removeFromWaitlist = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId } = req.params
     
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -188,13 +200,14 @@ export const removeFromWaitlist = async (req: Request, res: Response) => {
 // Mark member as attended
 export const markAttendance = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId, status } = req.body // status: 'attended' or 'noShow'
     
     if (!['attended', 'noShow'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status. Must be "attended" or "noShow".' })
     }
     
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -228,13 +241,14 @@ export const markAttendance = async (req: Request, res: Response) => {
 // Bulk mark attendance
 export const bulkMarkAttendance = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds, status } = req.body // status: 'attended' or 'noShow'
     
     if (!Array.isArray(memberIds) || !['attended', 'noShow'].includes(status)) {
       return res.status(400).json({ message: 'Invalid request. memberIds must be an array and status must be "attended" or "noShow".' })
     }
     
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })
@@ -274,7 +288,8 @@ export const bulkMarkAttendance = async (req: Request, res: Response) => {
 // Get attendance for an event
 export const getEventAttendance = async (req: Request, res: Response) => {
   try {
-    const event = mockEvents.find(e => e.id === req.params.id)
+    const clubId = getClubId(req)
+    const event = mockEvents.find(e => e.id === req.params.id && e.clubId === clubId)
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' })

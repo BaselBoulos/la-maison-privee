@@ -1,10 +1,12 @@
 import { Request, Response } from 'express'
 import { mockInterests } from '../data/mockData'
+import { getClubId } from '../utils/club'
 
 export const getInterests = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const enabledInterests = mockInterests
-      .filter(i => i.enabled)
+      .filter(i => i.enabled && (!i.clubId || i.clubId === clubId))
       .sort((a, b) => a.name.localeCompare(b.name))
     
     res.json(enabledInterests)
@@ -15,9 +17,12 @@ export const getInterests = async (req: Request, res: Response) => {
 
 export const getAllInterests = async (req: Request, res: Response) => {
   try {
-    const sortedInterests = [...mockInterests].sort((a, b) => 
-      a.name.localeCompare(b.name)
-    )
+    const clubId = getClubId(req)
+    const sortedInterests = mockInterests
+      .filter(i => !i.clubId || i.clubId === clubId)
+      .sort((a, b) => 
+        a.name.localeCompare(b.name)
+      )
     
     res.json(sortedInterests)
   } catch (error: any) {
@@ -27,6 +32,7 @@ export const getAllInterests = async (req: Request, res: Response) => {
 
 export const createInterest = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { name, icon } = req.body
     
     if (!name) {
@@ -34,7 +40,7 @@ export const createInterest = async (req: Request, res: Response) => {
     }
     
     // Check if interest already exists
-    if (mockInterests.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+    if (mockInterests.some(i => i.name.toLowerCase() === name.toLowerCase() && (!i.clubId || i.clubId === clubId))) {
       return res.status(400).json({ message: 'Interest already exists' })
     }
     
@@ -42,7 +48,8 @@ export const createInterest = async (req: Request, res: Response) => {
       id: String(mockInterests.length + 1),
       name,
       icon,
-      enabled: true
+      enabled: true,
+      clubId
     }
     
     mockInterests.push(newInterest)
@@ -55,7 +62,8 @@ export const createInterest = async (req: Request, res: Response) => {
 
 export const updateInterest = async (req: Request, res: Response) => {
   try {
-    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id)
+    const clubId = getClubId(req)
+    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id && (!i.clubId || i.clubId === clubId))
     
     if (interestIndex === -1) {
       return res.status(404).json({ message: 'Interest not found' })
@@ -71,16 +79,17 @@ export const updateInterest = async (req: Request, res: Response) => {
 
 export const deleteInterest = async (req: Request, res: Response) => {
   try {
-    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id)
+    const clubId = getClubId(req)
+    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id && (!i.clubId || i.clubId === clubId))
     
     if (interestIndex === -1) {
       return res.status(404).json({ message: 'Interest not found' })
     }
     
-    // Soft delete by disabling
-    mockInterests[interestIndex].enabled = false
+    // Hard delete for mock data
+    const [removed] = mockInterests.splice(interestIndex, 1)
     
-    res.json({ message: 'Interest disabled successfully', interest: mockInterests[interestIndex] })
+    res.json({ message: 'Interest deleted successfully', interest: removed })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }

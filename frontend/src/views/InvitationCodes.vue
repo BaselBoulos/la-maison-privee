@@ -239,6 +239,9 @@ const generateCodes = async () => {
     })
     codeCount.value = 5
     
+    // Notify other views (e.g., Overview Activity tab) to refresh
+    window.dispatchEvent(new CustomEvent('codes-updated'))
+    
     console.log(`Successfully generated ${newCodes.length} invitation codes`)
   } catch (error) {
     console.error('Error generating codes:', error)

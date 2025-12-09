@@ -1,0 +1,30 @@
+{
+  "invitationCodes": [],
+  "clubs": [
+    {
+      "id": 4,
+      "name": "rosemary",
+      "slug": "rosemary",
+      "theme": {
+        "primary": "#d4af37",
+        "accent": "#8b2635",
+        "logo": ""
+      },
+      "locale": "en-IL",
+      "currency": "ILS"
+    }
+  ],
+  "admins": [
+    {
+      "id": 4,
+      "email": "rosemary@gmail.com",
+      "password": "123",
+      "name": "ghassan",
+      "role": "club",
+      "clubId": 4,
+      "allowedClubIds": [
+        4
+      ]
+    }
+  ]
+}

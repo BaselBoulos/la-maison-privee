@@ -1,5 +1,20 @@
 import { Request, Response } from 'express'
 import { mockInvitationCodes } from '../data/mockData'
+import { loadRuntimeData, saveRuntimeData } from '../data/runtimeStore'
+import { getClubId } from '../utils/club'
+
+// Initialize runtime invitation codes (persisted between restarts)
+const runtimeData = loadRuntimeData()
+const baseMockIds = new Set(mockInvitationCodes.map(c => c.id))
+const invitationCodes = [
+  ...mockInvitationCodes,
+  ...runtimeData.invitationCodes.filter(c => !baseMockIds.has(c.id))
+]
+
+const persist = () => {
+  const delta = invitationCodes.filter(c => !baseMockIds.has(c.id))
+  saveRuntimeData({ invitationCodes: delta })
+}
 
 const generateCode = (): string => {
   const prefix = 'CLUB-'
@@ -12,9 +27,10 @@ const generateCode = (): string => {
 
 export const getInvitationCodes = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { status } = req.query
     
-    let filtered = [...mockInvitationCodes]
+    let filtered = invitationCodes.filter(c => c.clubId === clubId)
     
     if (status) {
       filtered = filtered.filter(c => c.status === status)
@@ -33,7 +49,8 @@ export const getInvitationCodes = async (req: Request, res: Response) => {
 
 export const getInvitationCode = async (req: Request, res: Response) => {
   try {
-    const code = mockInvitationCodes.find(c => c.id === req.params.id)
+    const clubId = getClubId(req)
+    const code = invitationCodes.find(c => c.id === req.params.id && c.clubId === clubId)
     
     if (!code) {
       return res.status(404).json({ message: 'Invitation code not found' })
@@ -47,6 +64,7 @@ export const getInvitationCode = async (req: Request, res: Response) => {
 
 export const generateInvitationCodes = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { count = 1 } = req.body
     
     if (count < 1 || count > 100) {
@@ -54,13 +72,13 @@ export const generateInvitationCodes = async (req: Request, res: Response) => {
     }
     
     const newCodes = []
-    const baseId = mockInvitationCodes.length
+    const baseId = invitationCodes.length
     
     for (let i = 0; i < count; i++) {
       let codeString = generateCode()
       
       // Ensure uniqueness
-      while (mockInvitationCodes.some(c => c.code === codeString)) {
+      while (invitationCodes.some(c => c.code === codeString)) {
         codeString = generateCode()
       }
       
@@ -68,12 +86,15 @@ export const generateInvitationCodes = async (req: Request, res: Response) => {
         id: String(baseId + i + 1),
         code: codeString,
         status: 'unused' as const,
-        createdAt: new Date().toISOString().split('T')[0]
+        createdAt: new Date().toISOString().split('T')[0],
+        clubId
       }
       
       newCodes.push(newCode)
-      mockInvitationCodes.push(newCode)
+      invitationCodes.push(newCode)
     }
+
+    persist()
     
     res.status(201).json(newCodes)
   } catch (error: any) {
@@ -83,19 +104,21 @@ export const generateInvitationCodes = async (req: Request, res: Response) => {
 
 export const revokeInvitationCode = async (req: Request, res: Response) => {
   try {
-    const codeIndex = mockInvitationCodes.findIndex(c => c.id === req.params.id)
+    const clubId = getClubId(req)
+    const codeIndex = invitationCodes.findIndex(c => c.id === req.params.id && c.clubId === clubId)
     
     if (codeIndex === -1) {
       return res.status(404).json({ message: 'Invitation code not found' })
     }
     
-    const code = mockInvitationCodes[codeIndex]
+    const code = invitationCodes[codeIndex]
     
     if (code.status === 'used') {
       return res.status(400).json({ message: 'Cannot revoke a used code' })
     }
     
-    mockInvitationCodes.splice(codeIndex, 1)
+    invitationCodes.splice(codeIndex, 1)
+    persist()
     
     res.json({ message: 'Invitation code revoked successfully' })
   } catch (error: any) {

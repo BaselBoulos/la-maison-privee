@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { mockMembers } from '../data/mockData'
+import { getClubId } from '../utils/club'
 
 // Store email history (in a real app, this would be in a database)
 const emailHistory: Array<{
@@ -10,18 +11,20 @@ const emailHistory: Array<{
   body: string
   sentAt: string
   status: 'sent' | 'failed'
+  clubId: number
 }> = []
 
 // Send email to single member
 export const sendEmailToMember = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId, subject, body } = req.body
     
     if (!memberId || !subject || !body) {
       return res.status(400).json({ message: 'memberId, subject, and body are required.' })
     }
     
-    const member = mockMembers.find(m => m.id === memberId)
+    const member = mockMembers.find(m => m.id === memberId && m.clubId === clubId)
     
     if (!member) {
       return res.status(404).json({ message: 'Member not found' })
@@ -40,7 +43,8 @@ export const sendEmailToMember = async (req: Request, res: Response) => {
       subject,
       body,
       sentAt: new Date().toISOString(),
-      status: 'sent' as const
+      status: 'sent' as const,
+      clubId
     }
     
     emailHistory.push(emailRecord)
@@ -58,6 +62,7 @@ export const sendEmailToMember = async (req: Request, res: Response) => {
 // Send bulk emails
 export const sendBulkEmails = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberIds, subject, body } = req.body
     
     if (!Array.isArray(memberIds) || !subject || !body) {
@@ -71,7 +76,7 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
     }
     
     memberIds.forEach((memberId: string) => {
-      const member = mockMembers.find(m => m.id === memberId)
+      const member = mockMembers.find(m => m.id === memberId && m.clubId === clubId)
       
       if (!member) {
         results.notFound.push(memberId)
@@ -91,7 +96,8 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
           subject,
           body,
           sentAt: new Date().toISOString(),
-          status: 'sent' as const
+          status: 'sent' as const,
+          clubId
         }
         
         emailHistory.push(emailRecord)
@@ -117,13 +123,14 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
 // Send emails with filters
 export const sendFilteredEmails = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { subject, body, filters } = req.body
     
     if (!subject || !body) {
       return res.status(400).json({ message: 'subject and body are required.' })
     }
     
-    let filteredMembers = [...mockMembers]
+    let filteredMembers = mockMembers.filter(m => m.clubId === clubId)
     
     // Apply filters
     if (filters) {
@@ -169,7 +176,8 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
           subject,
           body,
           sentAt: new Date().toISOString(),
-          status: 'sent' as const
+      status: 'sent' as const,
+      clubId
         }
         
         emailHistory.push(emailRecord)
@@ -194,9 +202,10 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
 // Get email history for a member
 export const getMemberEmailHistory = async (req: Request, res: Response) => {
   try {
+    const clubId = getClubId(req)
     const { memberId } = req.params
     
-    const memberEmails = emailHistory.filter(e => e.memberId === memberId)
+    const memberEmails = emailHistory.filter(e => e.memberId === memberId && e.clubId === clubId)
     
     res.json(memberEmails)
   } catch (error: any) {
@@ -207,7 +216,12 @@ export const getMemberEmailHistory = async (req: Request, res: Response) => {
 // Get all email history
 export const getAllEmailHistory = async (req: Request, res: Response) => {
   try {
-    res.json(emailHistory.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()))
+    const clubId = getClubId(req)
+    res.json(
+      emailHistory
+        .filter(e => e.clubId === clubId)
+        .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    )
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }

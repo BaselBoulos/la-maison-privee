@@ -3,19 +3,48 @@
     <div class="page-header">
       <h1 class="page-title">Events</h1>
       <button class="btn btn-primary" @click="showCreateModal = true">
-        Create New Event
+        Create Event
+      </button>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="events-filter">
+      <div class="filter-group">
+        <label for="month-filter" class="filter-label">Month</label>
+        <select id="month-filter" v-model="selectedMonth" class="filter-select">
+          <option value="">All Months</option>
+          <option v-for="(month, index) in months" :key="index" :value="index + 1">
+            {{ month }}
+          </option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="year-filter" class="filter-label">Year</label>
+        <select id="year-filter" v-model="selectedYear" class="filter-select">
+          <option value="">All Years</option>
+          <option v-for="year in availableYears" :key="year" :value="year">
+            {{ year }}
+          </option>
+        </select>
+      </div>
+      <button v-if="selectedMonth || selectedYear" class="btn btn-secondary btn-small" @click="clearFilters">
+        Clear Filters
       </button>
     </div>
     
     <div class="events-list">
-      <div v-if="events.length === 0" class="empty-state">
-        <p>No events created yet.</p>
-        <button class="btn btn-primary" @click="showCreateModal = true">
-          Create Your First Event
+      <div v-if="filteredEvents.length === 0" class="empty-state">
+        <p v-if="selectedMonth || selectedYear">No events match the selected filters.</p>
+        <p v-else>No events yet.</p>
+        <button v-if="!selectedMonth && !selectedYear" class="btn btn-primary" @click="showCreateModal = true">
+          Create your first event
+        </button>
+        <button v-else class="btn btn-secondary" @click="clearFilters">
+          Clear Filters
         </button>
       </div>
       
-      <div v-for="event in events" :key="event.id" class="event-card">
+      <div v-for="event in filteredEvents" :key="event.id" class="event-card">
         <div class="event-image-container">
           <img 
             v-if="event.image" 
@@ -36,15 +65,18 @@
           <p class="event-date">{{ formatDate(event.date) }} at {{ event.time }}</p>
           <p class="event-location">{{ event.location }}</p>
           <div class="event-info">
-            <span v-if="event.price" class="event-price">${{ event.price }}</span>
+            <span v-if="event.price" class="event-price">₪{{ event.price }}</span>
             <span v-if="event.maxCapacity" class="event-capacity">
               {{ event.rsvps.yes.length }}/{{ event.maxCapacity }} capacity
             </span>
           </div>
           <div class="event-stats">
-            <span>RSVPs: {{ event.rsvps.yes.length }} Yes, {{ event.rsvps.no.length }} No, {{ event.rsvps.maybe.length }} Maybe</span>
+            <span>RSVPs: Yes {{ event.rsvps.yes.length }}, No {{ event.rsvps.no.length }}, Maybe {{ event.rsvps.maybe.length }}</span>
+            <span>
+              Attendance: {{ getAttendanceCounts(event).attended }} attended, {{ getAttendanceCounts(event).noShow }} no-show
+            </span>
             <span v-if="event.waitlist && event.waitlist.length > 0" class="waitlist-badge">
-              {{ event.waitlist.length }} on waitlist
+              Waitlist: {{ event.waitlist.length }}
             </span>
           </div>
           <div class="event-actions">
@@ -60,7 +92,7 @@
     <div v-if="showCreateModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>Create New Event</h2>
+          <h2>Create Event</h2>
           <button class="modal-close" @click="closeModal">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -73,7 +105,7 @@
           <div class="event-form">
             <div class="form-row">
               <div class="form-group">
-                <label>Event Title *</label>
+                <label>Title *</label>
                 <input v-model="eventForm.title" type="text" class="form-input" placeholder="Enter event title" />
               </div>
               <div class="form-group">
@@ -95,7 +127,7 @@
             
             <div class="form-row">
               <div class="form-group">
-                <label>Max Capacity</label>
+                <label>Capacity</label>
                 <input v-model.number="eventForm.maxCapacity" type="number" class="form-input" placeholder="Optional" />
               </div>
               <div class="form-group">
@@ -106,7 +138,7 @@
             
             <div class="form-group full-width">
               <label>Description *</label>
-              <textarea v-model="eventForm.description" class="form-textarea" rows="4" placeholder="Enter event description"></textarea>
+              <textarea v-model="eventForm.description" class="form-textarea" rows="4" placeholder="Describe the event"></textarea>
             </div>
 
             <div class="form-group full-width">
@@ -138,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api, type Event, type Interest } from '../services/api'
 import { useToast } from '../composables/useToast'
 
@@ -148,6 +180,54 @@ const events = ref<Event[]>([])
 const interests = ref<Interest[]>([])
 const showCreateModal = ref(false)
 const isSubmitting = ref(false)
+const selectedMonth = ref<number | ''>('')
+const selectedYear = ref<number | ''>('')
+
+const months = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
+
+const availableYears = computed(() => {
+  const years = new Set<number>()
+  events.value.forEach(event => {
+    const year = new Date(event.date).getFullYear()
+    years.add(year)
+  })
+  return Array.from(years).sort((a, b) => b - a) // Most recent first
+})
+
+const filteredEvents = computed(() => {
+  let filtered = [...events.value]
+
+  // Filter by month
+  if (selectedMonth.value) {
+    filtered = filtered.filter(event => {
+      const eventDate = new Date(event.date)
+      return eventDate.getMonth() + 1 === selectedMonth.value
+    })
+  }
+
+  // Filter by year
+  if (selectedYear.value) {
+    filtered = filtered.filter(event => {
+      const eventDate = new Date(event.date)
+      return eventDate.getFullYear() === selectedYear.value
+    })
+  }
+
+  // Sort by date: most recent first (descending)
+  return filtered.sort((a, b) => {
+    const dateA = new Date(a.date).getTime()
+    const dateB = new Date(b.date).getTime()
+    return dateB - dateA // Most recent first
+  })
+})
+
+const clearFilters = () => {
+  selectedMonth.value = ''
+  selectedYear.value = ''
+}
 
 const eventForm = ref({
   title: '',
@@ -213,7 +293,7 @@ const createEvent = async () => {
       .filter(i => selectedInterests.value.includes(i.name))
       .map(i => i.id)
 
-    const newEvent = await api.createEvent({
+    await api.createEvent({
       title: eventForm.value.title,
       date: eventForm.value.date,
       time: eventForm.value.time,
@@ -246,8 +326,26 @@ const formatDate = (dateString: string): string => {
   })
 }
 
+const getAttendanceCounts = (event: Event) => {
+  const attended = (event.attendance?.attended || []).filter(id => {
+    const lower = id.toLowerCase()
+    return lower !== 'unknown member' && lower !== 'unknown'
+  }).length
+  const noShow = (event.attendance?.noShow || []).filter(id => {
+    const lower = id.toLowerCase()
+    return lower !== 'unknown member' && lower !== 'unknown'
+  }).length
+  return { attended, noShow }
+}
+
 onMounted(async () => {
-  events.value = await api.getEvents()
+  const allEvents = await api.getEvents()
+  // Sort events by date: most recent first
+  events.value = allEvents.sort((a, b) => {
+    const dateA = new Date(a.date).getTime()
+    const dateB = new Date(b.date).getTime()
+    return dateB - dateA // Most recent first
+  })
   interests.value = await api.getInterests()
 })
 </script>
@@ -269,6 +367,79 @@ onMounted(async () => {
   font-weight: 600;
   color: #ffffff;
   margin: 0;
+}
+
+.events-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-xl);
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1;
+  max-width: 200px;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: var(--spacing-md);
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: 14px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.filter-select:hover {
+  border-color: var(--color-gold-subtle);
+  background: var(--color-gray-soft);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.filter-select option {
+  background: var(--color-dark-soft);
+  color: #ffffff;
+}
+
+.btn-small {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 13px;
+}
+
+.btn-secondary {
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  color: #ffffff;
+}
+
+.btn-secondary:hover {
+  background: var(--color-gray-soft);
+  border-color: var(--color-gold-subtle);
+  color: var(--color-gold);
 }
 
 .btn {
@@ -459,6 +630,8 @@ onMounted(async () => {
   z-index: 1000;
   padding: var(--spacing-xl);
   animation: fadeIn var(--transition-base);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 @keyframes fadeIn {

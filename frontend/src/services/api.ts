@@ -1,14 +1,26 @@
 // API Service - Calls backend API endpoints
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
+const getClubId = () => {
+  const stored = localStorage.getItem('clubId')
+  return stored ? Number(stored) : 1
+}
+
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('authToken')
+  const clubId = getClubId()
+
+  const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
+  if (clubId && !url.searchParams.has('clubId')) {
+    url.searchParams.set('clubId', String(clubId))
+  }
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(url.toString(), {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
+      ...(clubId && { 'X-Club-Id': String(clubId) }),
       ...options?.headers,
     },
   })
@@ -33,6 +45,7 @@ export interface Member {
   invitationCode?: string
   profilePhoto?: string
   tier?: 'Standard' | 'Premium' | 'Platinum' | 'VIP' | 'Founding'
+  clubId?: string
 }
 
 export interface Interest {
@@ -40,6 +53,7 @@ export interface Interest {
   name: string
   icon?: string
   enabled: boolean
+  clubId?: string
 }
 
 export interface Event {
@@ -64,6 +78,7 @@ export interface Event {
     attended: string[]
     noShow: string[]
   }
+  clubId?: string
 }
 
 export interface InvitationCode {
@@ -75,6 +90,20 @@ export interface InvitationCode {
   createdAt: string
   usedAt?: string
   expiresAt?: string
+  clubId?: string
+}
+
+export interface Club {
+  id: number
+  name: string
+  slug: string
+  theme: {
+    primary: string
+    accent: string
+    logo?: string
+  }
+  locale: string
+  currency: string
 }
 
 // API Functions
@@ -138,6 +167,12 @@ export const api = {
     return apiRequest<Interest>(`/interests/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  },
+
+  async deleteInterest(id: string): Promise<void> {
+    return apiRequest<void>(`/interests/${id}`, {
+      method: 'DELETE'
     })
   },
 
@@ -227,6 +262,26 @@ export const api = {
     return apiRequest<void>(`/invitation-codes/${id}`, {
       method: 'DELETE',
     })
+  },
+
+  // Clubs
+  async getClubs(): Promise<Club[]> {
+    return apiRequest<Club[]>('/clubs')
+  },
+
+  async getCurrentClub(): Promise<Club> {
+    return apiRequest<Club>('/clubs/current')
+  },
+
+  async updateCurrentClub(payload: Partial<Club>): Promise<Club> {
+    return apiRequest<Club>('/clubs/current', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async deleteClub(clubId: number): Promise<void> {
+    return apiRequest<void>(`/clubs/${clubId}`, { method: 'DELETE' })
   },
 
   // Bulk Operations

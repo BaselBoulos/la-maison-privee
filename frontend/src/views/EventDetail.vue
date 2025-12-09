@@ -54,7 +54,7 @@
                 <line x1="12" y1="1" x2="12" y2="23"></line>
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
               </svg>
-              <span>${{ event.price }}</span>
+              <span>₪{{ event.price }}</span>
             </div>
             <div class="meta-item" v-if="event.maxCapacity">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,6 +68,39 @@
           </div>
           <div class="event-description">
             <p>{{ event.description }}</p>
+          </div>
+          <div class="event-interests">
+            <div class="event-interests-row">
+              <span class="section-label">Target Interests</span>
+              <div class="interest-chips">
+                <span 
+                  v-for="interest in event.targetInterests" 
+                  :key="interest" 
+                  class="interest-chip"
+                >
+                  {{ interest }}
+                </span>
+              </div>
+            </div>
+            <div class="event-invited-row">
+              <div class="invited-summary">
+                <span class="section-label">Invited (interest match)</span>
+                <span class="invited-count">{{ invitedCount }} members</span>
+              </div>
+              <div class="invited-avatars" v-if="displayedInvited.length">
+                <div 
+                  v-for="member in displayedInvited" 
+                  :key="member.id" 
+                  class="invited-avatar"
+                  :title="member.name"
+                >
+                  {{ member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) }}
+                </div>
+                <span v-if="invitedCount > displayedInvited.length" class="more-invited">
+                  +{{ invitedCount - displayedInvited.length }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -494,6 +527,16 @@ const editForm = ref({
   description: ''
 })
 
+const invitedMembers = computed(() => {
+  if (!event.value || !event.value.targetInterests?.length) return []
+  return members.value.filter(member =>
+    member.interests?.some(interest => event.value?.targetInterests.includes(interest))
+  )
+})
+
+const invitedCount = computed(() => invitedMembers.value.length)
+const displayedInvited = computed(() => invitedMembers.value.slice(0, 6))
+
 const isPastEvent = computed(() => {
   if (!event.value) return false
   const eventDate = new Date(event.value.date)
@@ -735,13 +778,16 @@ const updateEvent = async () => {
   }
 }
 
-onMounted(async () => {
+const loadEvent = async () => {
   const eventId = route.params.id as string
-  event.value = await api.getEvent(eventId)
-  members.value = await api.getMembers()
-  
-  // Initialize edit form with current event values
-  if (event.value) {
+  try {
+    event.value = await api.getEvent(eventId)
+    if (!event.value) {
+      throw new Error('Event not found')
+    }
+    members.value = await api.getMembers()
+
+    // Initialize edit form with current event values
     editForm.value = {
       title: event.value.title,
       date: event.value.date,
@@ -751,7 +797,15 @@ onMounted(async () => {
       price: event.value.price,
       description: event.value.description
     }
+  } catch (err: any) {
+    console.error('Error loading event', err)
+    toast.showToast('Event not found for this club', 'error')
+    router.push('/')
   }
+}
+
+onMounted(async () => {
+  await loadEvent()
 })
 </script>
 
@@ -990,6 +1044,86 @@ onMounted(async () => {
   color: #cccccc;
   line-height: 1.6;
   font-size: 15px;
+}
+
+.event-interests {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.event-interests-row,
+.event-invited-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.section-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.interest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interest-chip {
+  background: var(--color-gray);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-gray-soft);
+  font-size: 12px;
+}
+
+.event-invited-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.invited-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.invited-count {
+  font-size: 14px;
+  color: #d4af37;
+  font-weight: 600;
+}
+
+.invited-avatars {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invited-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.more-invited {
+  font-size: 12px;
+  color: #888;
 }
 
 .rsvp-section {

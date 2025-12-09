@@ -12,7 +12,45 @@
           <p class="club-tagline">Exclusive Membership Portal</p>
         </div>
         
-        <form @submit.prevent="handleLogin" class="login-form">
+        <form @submit.prevent="isRegistering ? handleRegister() : handleLogin()" class="login-form">
+          <div v-if="isRegistering" class="form-group">
+            <label for="name">Full Name</label>
+            <div class="input-wrapper">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon">
+                <path d="M20 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M4 21v-2a4 4 0 0 1 3-3.87"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <input
+                id="name"
+                v-model="name"
+                type="text"
+                class="form-input"
+                placeholder="Your full name"
+                required
+                autocomplete="name"
+              />
+            </div>
+          </div>
+          
+          <div v-if="isRegistering" class="form-group">
+            <label for="clubName">Club Name</label>
+            <div class="input-wrapper">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <input
+                id="clubName"
+                v-model="clubName"
+                type="text"
+                class="form-input"
+                placeholder="Your club name"
+                required
+              />
+            </div>
+          </div>
+          
           <div class="form-group">
             <label for="email">Email Address</label>
             <div class="input-wrapper">
@@ -25,7 +63,7 @@
                 v-model="email"
                 type="email"
                 class="form-input"
-                placeholder="admin@innercircle.com"
+                placeholder="you@example.com"
                 required
                 autocomplete="email"
               />
@@ -56,19 +94,25 @@
           </div>
           
           <button type="submit" class="login-button" :disabled="isLoading">
-            <span v-if="!isLoading">Access Dashboard</span>
+            <span v-if="!isLoading">{{ isRegistering ? 'Create Account' : 'Access Dashboard' }}</span>
             <span v-else class="loading">
               <span class="spinner"></span>
-              Authenticating...
+              {{ isRegistering ? 'Creating...' : 'Authenticating...' }}
             </span>
           </button>
         </form>
         
         <div class="login-footer">
           <p class="footer-text">Private & Confidential</p>
-          <div class="demo-credentials">
+          <div class="auth-toggle">
+            <span>{{ isRegistering ? 'Already have an account?' : 'New here?' }}</span>
+            <button class="link-button" type="button" @click="toggleMode">
+              {{ isRegistering ? 'Sign in' : 'Create an account' }}
+            </button>
+          </div>
+          <div class="demo-credentials" v-if="!isRegistering">
             <p class="demo-label">Demo Credentials:</p>
-            <p class="demo-info">Email: <code>admin@innercircle.com</code></p>
+            <p class="demo-info">Email: <code>super@lamaisonprivee.com</code></p>
             <p class="demo-info">Password: <code>admin123</code></p>
           </div>
         </div>
@@ -82,10 +126,51 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const email = ref('admin@innercircle.com')
+const isRegistering = ref(false)
+const email = ref('super@lamaisonprivee.com')
 const password = ref('admin123')
+const name = ref('')
+const clubName = ref('')
 const error = ref('')
 const isLoading = ref(false)
+
+const toggleMode = () => {
+  error.value = ''
+  isRegistering.value = !isRegistering.value
+  if (isRegistering.value) {
+    email.value = ''
+    password.value = ''
+  } else {
+    email.value = 'super@lamaisonprivee.com'
+    password.value = 'admin123'
+  }
+}
+
+const persistAuth = (data: any) => {
+  localStorage.setItem('authToken', data.token)
+  localStorage.setItem('userEmail', data.admin.email)
+  localStorage.setItem('userRole', data.admin.role || 'club')
+
+  const allowedClubIds: number[] = data.admin.allowedClubIds?.length
+    ? data.admin.allowedClubIds.map((id: any) => Number(id))
+    : data.admin.clubId
+      ? [Number(data.admin.clubId)]
+      : []
+  localStorage.setItem('allowedClubIds', JSON.stringify(allowedClubIds))
+
+  if (data.admin.clubId) {
+    localStorage.setItem('clubId', String(data.admin.clubId))
+  } else if (allowedClubIds.length > 0) {
+    localStorage.setItem('clubId', String(allowedClubIds[0]))
+  } else if (data.club) {
+    localStorage.setItem('clubId', String(data.club.id))
+  } else {
+    localStorage.setItem('clubId', '1')
+  }
+
+  localStorage.removeItem('onboardingRequired')
+  localStorage.removeItem('onboardingComplete')
+}
 
 const handleLogin = async () => {
   error.value = ''
@@ -112,15 +197,43 @@ const handleLogin = async () => {
 
     const data = await response.json()
     
-    // Store auth token
-    localStorage.setItem('authToken', data.token)
-    localStorage.setItem('userEmail', data.admin.email)
-    localStorage.setItem('userRole', 'admin')
-    
-    // Redirect to dashboard
-    router.push('/')
+    persistAuth(data)
+    router.push({ name: 'dashboard' })
   } catch (err: any) {
     error.value = err.message || 'Invalid credentials. Please try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const handleRegister = async () => {
+  error.value = ''
+  isLoading.value = true
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: email.value,
+        password: password.value,
+        name: name.value,
+        clubName: clubName.value
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Registration failed' }))
+      throw new Error(errorData.message || 'Registration failed')
+    }
+
+    const data = await response.json()
+    persistAuth(data)
+    router.push({ name: 'dashboard' })
+  } catch (err: any) {
+    error.value = err.message || 'Registration failed. Please try again.'
   } finally {
     isLoading.value = false
   }
@@ -409,6 +522,24 @@ const handleLogin = async () => {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
+}
+
+.auth-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 12px;
+  color: #ccc;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-gold);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
 }
 
 /* Responsive */

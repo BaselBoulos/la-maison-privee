@@ -3,7 +3,7 @@
     <div class="members-container">
       <!-- Member Management -->
       <div class="left-section">
-        <h2 class="section-title">MEMBER MANAGEMENT</h2>
+        <h2 class="section-title">Member Management</h2>
         
         <div class="filters-section">
           <div class="filter-row">
@@ -68,7 +68,7 @@
 
         <div class="interests-section">
           <div class="section-header">
-            <h2 class="section-title">YOUR INTERESTS</h2>
+            <h2 class="section-title">Your Interests</h2>
             <div v-if="selectedMembers.length > 0" class="bulk-actions-toolbar">
               <span class="selected-count">{{ selectedMembers.length }} selected</span>
               <button class="btn btn-sm btn-secondary" @click="showBulkStatusModal = true">Update Status</button>
@@ -318,8 +318,6 @@ const sortColumn = ref<string | null>(null)
 const sortDirection = ref<'asc' | 'desc'>('asc')
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
-
-const filteredMembersCount = computed(() => filteredMembers.value.length)
 
 const sortedMembers = computed(() => {
   if (!sortColumn.value) {

@@ -19,8 +19,8 @@
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <h2 class="section-title">Interests Management</h2>
-            <div class="interests-count">{{ filteredInterests.length }} interest{{ filteredInterests.length !== 1 ? 's' : '' }}</div>
+            <h2 class="section-title">Interests</h2>
+            <div class="interests-count">{{ filteredInterests.length }} interests</div>
           </div>
         </div>
         
@@ -36,7 +36,7 @@
                 v-model="searchQuery"
                 type="text" 
                 class="search-input"
-                placeholder="Search interests..."
+                placeholder="Search interests"
               />
             </div>
             <div class="filter-tabs">
@@ -69,13 +69,7 @@
                 :key="interest.id" 
                 :class="['interest-item', { disabled: !interest.enabled }]"
               >
-                <input 
-                  v-model="interest.name" 
-                  type="text" 
-                  class="interest-input"
-                  @blur="updateInterest(interest)"
-                  :disabled="!interest.enabled"
-                />
+                <div class="interest-name">{{ interest.name }}</div>
                 <div class="interest-actions">
                   <label class="toggle-switch" :title="interest.enabled ? 'Enabled' : 'Disabled'">
                     <input 
@@ -87,7 +81,7 @@
                   </label>
                   <button 
                     class="btn-icon btn-danger"
-                    @click="deleteInterest(interest.id)"
+                    @click="promptDeleteInterest(interest)"
                     title="Delete"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -98,27 +92,50 @@
                 </div>
               </div>
               <div v-if="filteredInterests.length === 0" class="empty-state">
-                <p>No interests found</p>
+                <p>No interests found.</p>
               </div>
             </div>
           </div>
           
           <!-- Add New Interest -->
           <div class="add-interest">
-            <input 
-              v-model="newInterestName" 
-              type="text" 
-              class="interest-input"
-              placeholder="Enter new interest name..."
-              @keyup.enter="addInterest"
-            />
+            <div class="new-interest-field">
+              <label for="new-interest">Add New Interest</label>
+              <div class="input-with-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="16"></line>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <input 
+                  id="new-interest"
+                  v-model="newInterestName" 
+                  type="text" 
+                  class="interest-input"
+                  placeholder="e.g., Rare Wines"
+                  @keyup.enter="addInterest"
+                />
+              </div>
+            </div>
             <button class="btn btn-primary" @click="addInterest" :disabled="!newInterestName.trim()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
               Add Interest
             </button>
+          </div>
+          
+          <div class="quick-interests">
+            <p class="helper-text">Quick add:</p>
+            <div class="chip-grid">
+              <button
+                v-for="interest in suggestedInterests"
+                :key="interest"
+                type="button"
+                class="chip-button"
+                :class="{ selected: newInterestName === interest }"
+                @click="selectSuggested(interest)"
+              >
+                {{ interest }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -140,13 +157,13 @@
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <h2 class="section-title">Member Tier Rules</h2>
+            <h2 class="section-title">Membership Tier Rules</h2>
           </div>
         </div>
         
         <div v-show="tierRulesExpanded" class="tier-rules-content">
           <p class="rules-description">
-            Member tiers are automatically assigned based on the number of past events they have attended (where they RSVP'd "Yes").
+            Suggested thresholds for member tiers based on number of events attended.
           </p>
           <div class="tier-rules-list">
             <div class="tier-rule-item">
@@ -154,7 +171,7 @@
                 <span class="tier-rule-name">Standard</span>
               </div>
               <div class="tier-rule-info">
-                <span class="tier-rule-range">0-2 events attended</span>
+                <span class="tier-rule-range">0 - 4 events attended</span>
               </div>
             </div>
             <div class="tier-rule-item">
@@ -162,7 +179,7 @@
                 <span class="tier-rule-name">Premium</span>
               </div>
               <div class="tier-rule-info">
-                <span class="tier-rule-range">3-5 events attended</span>
+                <span class="tier-rule-range">5 - 9 events attended</span>
               </div>
             </div>
             <div class="tier-rule-item">
@@ -170,7 +187,7 @@
                 <span class="tier-rule-name">Platinum</span>
               </div>
               <div class="tier-rule-info">
-                <span class="tier-rule-range">6-10 events attended</span>
+                <span class="tier-rule-range">10 - 14 events attended</span>
               </div>
             </div>
             <div class="tier-rule-item">
@@ -178,34 +195,99 @@
                 <span class="tier-rule-name">VIP</span>
               </div>
               <div class="tier-rule-info">
-                <span class="tier-rule-range">11-20 events attended</span>
+                <span class="tier-rule-range">15 - 24 events attended</span>
               </div>
             </div>
             <div class="tier-rule-item">
               <div class="tier-rule-badge founding">
-                <span class="tier-rule-name">Founding</span>
+                <span class="tier-rule-name">Founding Member</span>
               </div>
               <div class="tier-rule-info">
-                <span class="tier-rule-range">21+ events attended</span>
+                <span class="tier-rule-range">25+ events attended</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Super Admin Club Management -->
+      <div v-if="userRole === 'super'" class="settings-section">
+        <div class="section-header">
+          <div class="header-left">
+            <h2 class="section-title">Club Management</h2>
+          </div>
+        </div>
+        <div class="club-management">
+          <div class="club-select">
+            <label>Select club to delete</label>
+            <select v-model.number="selectedClubId">
+              <option v-for="club in clubs" :key="club.id" :value="club.id">
+                {{ club.name }} (ID: {{ club.id }})
+              </option>
+            </select>
+            <p class="helper-text">Seed clubs (IDs 1-3) cannot be deleted.</p>
+          </div>
+          <div class="club-actions">
+            <button class="btn btn-danger" :disabled="deletingClub || !selectedClubId" @click="deleteClub">
+              <span v-if="!deletingClub">Delete Club</span>
+              <span v-else class="loading-inline">Deleting...</span>
+            </button>
+            <p v-if="deleteError" class="error-text">{{ deleteError }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Interest Confirmation Modal -->
+  <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+    <div class="modal-content confirm-modal">
+      <div class="modal-header">
+        <h3>Delete Interest</h3>
+        <button class="modal-close" @click="closeDeleteModal">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ deleteTarget?.name }}</strong>? This cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary" @click="closeDeleteModal">Cancel</button>
+        <button class="btn btn-danger" @click="confirmDelete" :disabled="deletingInterest">
+          <span v-if="!deletingInterest">Delete</span>
+          <span v-else class="loading-inline">Deleting...</span>
+        </button>
+      </div>
+      <p v-if="deleteError" class="error-text">{{ deleteError }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { api, type Interest } from '../services/api'
-
+import { api, type Interest, type Club } from '../services/api'
 const allInterests = ref<Interest[]>([])
 const newInterestName = ref('')
 const searchQuery = ref('')
 const statusFilter = ref('')
 const interestsExpanded = ref(false)
 const tierRulesExpanded = ref(false)
+const suggestedInterests = [
+  'Wine Tasting',
+  'Fine Dining',
+  'Cigar Tasting',
+  'Whisky / Spirits',
+  'Live Music',
+  'Art & Culture',
+  'Craft Cocktails',
+  'Luxury Travel'
+]
+const userRole = ref(localStorage.getItem('userRole') || 'club')
+const clubs = ref<Club[]>([])
+const selectedClubId = ref<number | null>(null)
+const deletingClub = ref(false)
+const deleteError = ref('')
+const showDeleteModal = ref(false)
+const deleteTarget = ref<Interest | null>(null)
+const deletingInterest = ref(false)
 
 const filteredInterests = computed(() => {
   let filtered = [...allInterests.value]
@@ -242,6 +324,66 @@ const addInterest = async () => {
   newInterestName.value = ''
 }
 
+const selectSuggested = (name: string) => {
+  newInterestName.value = name
+}
+
+const promptDeleteInterest = (interest: Interest) => {
+  deleteTarget.value = interest
+  showDeleteModal.value = true
+  deleteError.value = ''
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  deleteTarget.value = null
+  deletingInterest.value = false
+}
+
+const confirmDelete = async () => {
+  if (!deleteTarget.value) return
+  deletingInterest.value = true
+  try {
+    await api.deleteInterest(deleteTarget.value.id)
+    allInterests.value = await api.getAllInterests()
+    closeDeleteModal()
+  } catch (e: any) {
+    deleteError.value = e?.message || 'Failed to delete interest'
+    deletingInterest.value = false
+  }
+}
+
+const loadClubs = async () => {
+  try {
+    const list = await api.getClubs()
+    clubs.value = list
+    if (!selectedClubId.value && list.length) {
+      selectedClubId.value = list[0].id
+    }
+  } catch (e: any) {
+    deleteError.value = e?.message || 'Failed to load clubs'
+  }
+}
+
+const deleteClub = async () => {
+  if (!selectedClubId.value) return
+  if (selectedClubId.value <= 3) {
+    deleteError.value = 'Seed clubs cannot be deleted.'
+    return
+  }
+  deleteError.value = ''
+  deletingClub.value = true
+  try {
+    await api.deleteClub(selectedClubId.value)
+    clubs.value = clubs.value.filter(c => c.id !== selectedClubId.value)
+    selectedClubId.value = clubs.value[0]?.id || null
+  } catch (e: any) {
+    deleteError.value = e?.message || 'Failed to delete club'
+  } finally {
+    deletingClub.value = false
+  }
+}
+
 const updateInterest = async (interest: Interest) => {
   await api.updateInterest(interest.id, {
     name: interest.name,
@@ -266,6 +408,9 @@ const toggleTierRulesExpanded = () => {
 
 onMounted(async () => {
   allInterests.value = await api.getAllInterests()
+  if (userRole.value === 'super') {
+    loadClubs()
+  }
 })
 </script>
 
@@ -477,40 +622,23 @@ onMounted(async () => {
   gap: 12px;
   padding: 10px 12px;
   border-radius: 6px;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
+  border: 1px solid transparent;
 }
 
 .interest-item:hover {
   background: #141414;
+  border-color: rgba(212, 175, 55, 0.25);
 }
 
 .interest-item.disabled {
   opacity: 0.6;
 }
 
-.interest-item.disabled .interest-input {
-  text-decoration: line-through;
-}
-
-.interest-input {
+.interest-name {
   flex: 1;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 8px 10px;
-  color: #ffffff;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.interest-input:focus {
-  outline: none;
-  background: #141414;
-  border-color: #d4af37;
-}
-
-.interest-input:disabled {
-  cursor: not-allowed;
+  color: #fff;
+  font-weight: 600;
 }
 
 .interest-actions {
@@ -692,6 +820,7 @@ input:checked + .slider:before {
   gap: 10px;
   padding-top: 20px;
   border-top: 1px solid #2a2a2a;
+  align-items: flex-end;
 }
 
 .btn-primary {
@@ -707,6 +836,164 @@ input:checked + .slider:before {
 
 .btn-primary:disabled:hover {
   background: #d4af37;
+}
+
+.quick-interests {
+  margin-top: 14px;
+}
+.helper-text {
+  color: #aaa;
+  font-size: 12px;
+  margin: 0 0 6px 0;
+}
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.chip-button {
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(139, 38, 53, 0.08));
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.chip-button:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  transform: translateY(-1px);
+}
+.chip-button.selected {
+  border-color: rgba(212, 175, 55, 0.9);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(139, 38, 53, 0.18));
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+
+.new-interest-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.new-interest-field label {
+  font-size: 12px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-with-icon:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+}
+.input-with-icon input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+}
+.input-with-icon input:focus {
+  outline: none;
+}
+
+.club-management {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.club-select label {
+  display: block;
+  color: #aaa;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.club-select select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  background: #111;
+  color: #fff;
+}
+.club-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn-danger {
+  background: linear-gradient(135deg, #8b2635, #5c0f1f);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.btn-danger:hover { background: linear-gradient(135deg, #a22d3f, #701428); }
+.loading-inline { font-size: 12px; color: #ccc; }
+.error-text { color: #ff6b6b; margin-top: 8px; }
+
+.confirm-modal {
+  max-width: 420px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #0f0f0f, #0a0a0a);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 20px;
+  width: 100%;
+  max-width: 520px;
+  color: #fff;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-body {
+  margin-bottom: 16px;
+  color: #ddd;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .btn {

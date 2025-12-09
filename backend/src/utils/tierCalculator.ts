@@ -1,34 +1,34 @@
-import { mockEvents } from '../data/mockData'
+import { mockEvents, type Event } from '../data/mockData'
 
 export type Tier = 'Standard' | 'Premium' | 'Platinum' | 'VIP' | 'Founding'
 
 /**
  * Tier Badge Rules (based on historical event attendance):
- * - Standard: 0-2 events attended
- * - Premium: 3-5 events attended
- * - Platinum: 6-10 events attended
- * - VIP: 11-20 events attended
- * - Founding: 21+ events attended
+ * - Standard: 0-4 events attended
+ * - Premium: 5-9 events attended
+ * - Platinum: 10-14 events attended
+ * - VIP: 15-24 events attended
+ * - Founding: 25+ events attended
  */
 export const TIER_RULES = {
-  Standard: { min: 0, max: 2, description: '0-2 events attended' },
-  Premium: { min: 3, max: 5, description: '3-5 events attended' },
-  Platinum: { min: 6, max: 10, description: '6-10 events attended' },
-  VIP: { min: 11, max: 20, description: '11-20 events attended' },
-  Founding: { min: 21, max: Infinity, description: '21+ events attended' }
+  Standard: { min: 0, max: 4, description: '0-4 events attended' },
+  Premium: { min: 5, max: 9, description: '5-9 events attended' },
+  Platinum: { min: 10, max: 14, description: '10-14 events attended' },
+  VIP: { min: 15, max: 24, description: '15-24 events attended' },
+  Founding: { min: 25, max: Infinity, description: '25+ events attended' }
 } as const
 
 /**
  * Calculate the number of events a member has attended (past events where they RSVP'd "yes")
  */
-export const calculateAttendanceCount = (memberId: string): number => {
+export const calculateAttendanceCount = (memberId: string, events: Event[] = mockEvents): number => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   now.setMinutes(0, 0, 0)
   now.setSeconds(0, 0)
   now.setMilliseconds(0)
   
-  const attendedEvents = mockEvents.filter(event => {
+  const attendedEvents = events.filter(event => {
     // Parse date string (format: 'YYYY-MM-DD')
     // Add time component to ensure consistent parsing
     const dateStr = event.date.includes('T') ? event.date : event.date + 'T00:00:00'
@@ -52,14 +52,14 @@ export const calculateAttendanceCount = (memberId: string): number => {
 /**
  * Calculate member tier based on attendance count
  * Rules:
- * - Standard: 0-2 events
- * - Premium: 3-5 events
- * - Platinum: 6-10 events
- * - VIP: 11-20 events
- * - Founding: 21+ events
+ * - Standard: 0-4 events
+ * - Premium: 5-9 events
+ * - Platinum: 10-14 events
+ * - VIP: 15-24 events
+ * - Founding: 25+ events
  */
-export const calculateTier = (memberId: string): Tier => {
-  const attendanceCount = calculateAttendanceCount(memberId)
+export const calculateTier = (memberId: string, events: Event[] = mockEvents): Tier => {
+  const attendanceCount = calculateAttendanceCount(memberId, events)
   
   if (attendanceCount >= TIER_RULES.Founding.min) {
     return 'Founding'

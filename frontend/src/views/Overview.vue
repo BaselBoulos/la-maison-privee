@@ -83,6 +83,16 @@
               type="line"
             />
           </div>
+          <div class="dashboard-card chart-card">
+            <h2 class="card-title">Monthly Profit</h2>
+            <MemberChart 
+              :data="profitData.data" 
+              :labels="profitData.labels"
+              type="bar"
+              label="Profit"
+              @month-click="handleMonthClick"
+            />
+          </div>
           <div class="dashboard-card">
             <h2 class="card-title">Event Statistics</h2>
             <div class="analytics-stats">
@@ -103,28 +113,118 @@
         </div>
       </div>
 
-      <!-- Activity Tab -->
-      <div v-show="activeTab === 'activity'" class="tab-panel">
-        <div class="dashboard-card">
-          <h2 class="card-title">Recent Activity</h2>
-          <div class="activity-list">
-            <div 
-              v-for="(activity, index) in recentActivities" 
-              :key="activity.id" 
-              class="activity-item"
-              :style="{ animationDelay: `${index * 0.1}s` }"
-            >
-              <div class="activity-icon" :class="activity.type">
-                {{ activity.icon }}
+    </div>
+
+    <!-- Profit Breakdown Modal -->
+    <div v-if="showProfitModal" class="modal-overlay" @click="closeProfitModal">
+      <div class="modal-content profit-modal" @click.stop>
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <h2 class="modal-title">Profit Breakdown</h2>
+            <p class="modal-subtitle">{{ selectedMonth }} {{ new Date().getFullYear() }}</p>
+          </div>
+          <button class="modal-close" @click="closeProfitModal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div v-if="monthEventBreakdown.length === 0" class="empty-state">
+            <div class="empty-icon">📊</div>
+            <p>No events with attendance data for this month</p>
+          </div>
+          <div v-else>
+            <!-- Summary Stats -->
+            <div class="profit-summary">
+              <div class="summary-card">
+                <div class="summary-icon">📅</div>
+                <div class="summary-content">
+                  <div class="summary-label">Total Events</div>
+                  <div class="summary-value">{{ monthEventBreakdown.length }}</div>
+                </div>
               </div>
-              <div class="activity-content">
-                <p class="activity-text">{{ activity.text }}</p>
-                <span class="activity-time">{{ activity.time }}</span>
+              <div class="summary-card">
+                <div class="summary-icon">👥</div>
+                <div class="summary-content">
+                  <div class="summary-label">Total Attendees</div>
+                  <div class="summary-value">{{ monthEventBreakdown.reduce((sum, e) => sum + e.attendeeCount, 0) }}</div>
+                </div>
+              </div>
+              <div class="summary-card highlight">
+                <div class="summary-icon">💰</div>
+                <div class="summary-content">
+                  <div class="summary-label">Total Profit</div>
+                  <div class="summary-value">₪{{ totalMonthProfit.toLocaleString() }}</div>
+                </div>
               </div>
             </div>
-            <div v-if="recentActivities.length === 0" class="empty-state">
-              <div class="empty-icon">📋</div>
-              <p>No recent activity</p>
+
+            <!-- Events List -->
+            <div class="breakdown-list">
+              <div 
+                v-for="(event, index) in monthEventBreakdown" 
+                :key="event.id"
+                class="breakdown-item"
+                :style="{ animationDelay: `${index * 0.05}s` }"
+              >
+                <div class="breakdown-event-header">
+                  <div class="breakdown-event-info">
+                    <h3 class="breakdown-event-title">{{ event.title }}</h3>
+                    <div class="breakdown-event-meta">
+                      <span class="breakdown-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        {{ formatDate(event.date) }} at {{ event.time }}
+                      </span>
+                      <span class="breakdown-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        {{ event.location }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="breakdown-event-profit-badge">
+                    <span class="profit-badge-label">Profit</span>
+                    <span class="profit-badge-value">₪{{ event.totalProfit.toLocaleString() }}</span>
+                  </div>
+                </div>
+                <div class="breakdown-event-stats">
+                  <div class="breakdown-stat">
+                    <span class="breakdown-stat-icon">📨</span>
+                    <div class="breakdown-stat-content">
+                      <span class="breakdown-stat-label">Invited (interest match)</span>
+                      <span class="breakdown-stat-value">{{ event.invitedCount }}</span>
+                    </div>
+                  </div>
+                  <div class="breakdown-stat">
+                    <span class="breakdown-stat-icon">✅</span>
+                    <div class="breakdown-stat-content">
+                      <span class="breakdown-stat-label">Attended</span>
+                      <span class="breakdown-stat-value">{{ event.attendeeCount }}</span>
+                    </div>
+                  </div>
+                  <div class="breakdown-stat">
+                    <span class="breakdown-stat-icon">❌</span>
+                    <div class="breakdown-stat-content">
+                      <span class="breakdown-stat-label">No Show</span>
+                      <span class="breakdown-stat-value">{{ event.noShowCount }}</span>
+                    </div>
+                  </div>
+                  <div class="breakdown-stat">
+                    <span class="breakdown-stat-icon">💵</span>
+                    <div class="breakdown-stat-content">
+                      <span class="breakdown-stat-label">Price per Person</span>
+                      <span class="breakdown-stat-value">₪{{ event.price.toLocaleString() }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { api, type Event, type Member, type InvitationCode } from '../services/api'
 import MemberChart from '../components/MemberChart.vue'
 
@@ -142,8 +242,7 @@ const activeTab = ref('overview')
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'activity', label: 'Activity' }
+  { id: 'analytics', label: 'Analytics' }
 ]
 
 const totalMembers = ref(0)
@@ -156,6 +255,9 @@ const newMembersThisMonth = ref(0)
 const events = ref<Event[]>([])
 const members = ref<Member[]>([])
 const codes = ref<InvitationCode[]>([])
+const showProfitModal = ref(false)
+const selectedMonth = ref('')
+const selectedMonthIndex = ref(-1)
 
 const upcomingEventsList = computed(() => {
   const now = new Date()
@@ -184,75 +286,109 @@ const memberGrowthData = computed(() => {
   }
 })
 
-const recentActivities = computed(() => {
-  const activities: any[] = []
+const profitData = computed(() => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const currentYear = new Date().getFullYear()
+  const profitByMonth = new Array(12).fill(0)
   
-  // Recent member joins
-  const recentMembers = [...members.value]
-    .sort((a, b) => new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime())
-    .slice(0, 3)
-  
-  recentMembers.forEach(member => {
-    activities.push({
-      id: `member-${member.id}`,
-      type: 'member',
-      icon: '👤',
-      text: `${member.name} joined the club`,
-      time: getTimeAgo(member.joinedDate)
-    })
-  })
-  
-  // Recent event RSVPs
+  // Calculate profit for each event
   events.value.forEach(event => {
-    const yesCount = event.rsvps.yes.length
-    if (yesCount > 0) {
-      activities.push({
-        id: `event-${event.id}`,
-        type: 'event',
-        icon: '📅',
-        text: `${yesCount} confirmed for "${event.title}"`,
-        time: getTimeAgo(event.date)
-      })
+    // Only process events with attendance data and a price
+    if (event.attendance && event.attendance.attended && event.price) {
+      const eventDate = new Date(event.date)
+      
+      // Only process events from current year
+      if (eventDate.getFullYear() === currentYear) {
+        // Filter out "unknown member" from attendance
+        const validAttendees = event.attendance.attended.filter(
+          memberId => memberId.toLowerCase() !== 'unknown member' && memberId !== 'unknown'
+        )
+        
+        // Calculate profit: number of valid attendees × event price
+        const eventProfit = validAttendees.length * event.price
+        const month = eventDate.getMonth()
+        profitByMonth[month] += eventProfit
+      }
     }
   })
   
-  // Recent code generations
-  const recentCodes = [...codes.value]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 2)
-  
-  recentCodes.forEach(code => {
-    if (code.status === 'unused') {
-      activities.push({
-        id: `code-${code.id}`,
-        type: 'code',
-        icon: '🎫',
-        text: `New invitation code generated: ${code.code}`,
-        time: getTimeAgo(code.createdAt)
-      })
-    }
-  })
-  
-  return activities
-    .sort((a, b) => {
-      const timeA = new Date(a.time).getTime()
-      const timeB = new Date(b.time).getTime()
-      return timeB - timeA
-    })
-    .slice(0, 8)
+  return {
+    labels: months,
+    data: profitByMonth
+  }
 })
 
-const getTimeAgo = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+const monthEventBreakdown = computed(() => {
+  if (selectedMonthIndex.value === -1) return []
   
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const currentYear = new Date().getFullYear()
+  const monthEvents: Array<{
+    id: string
+    title: string
+    date: string
+    time: string
+    location: string
+    price: number
+    attendeeCount: number
+    noShowCount: number
+    invitedCount: number
+    totalProfit: number
+  }> = []
+  
+  events.value.forEach(event => {
+    if (event.attendance && event.attendance.attended && event.price) {
+      const eventDate = new Date(event.date)
+      
+      if (eventDate.getFullYear() === currentYear && eventDate.getMonth() === selectedMonthIndex.value) {
+        // Filter out "unknown member" from attendance
+        const validAttendees = event.attendance.attended.filter(
+          memberId => memberId.toLowerCase() !== 'unknown member' && memberId !== 'unknown'
+        )
+        const validNoShows = (event.attendance.noShow || []).filter(
+          memberId => memberId.toLowerCase() !== 'unknown member' && memberId !== 'unknown'
+        )
+        
+        const attendeeCount = validAttendees.length
+        const noShowCount = validNoShows.length
+        const invitedCount = members.value.filter(member =>
+          member.interests?.some(interest => event.targetInterests?.includes(interest))
+        ).length
+        const totalProfit = attendeeCount * event.price
+        
+        monthEvents.push({
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          price: event.price,
+          attendeeCount,
+          invitedCount,
+          noShowCount,
+          totalProfit
+        })
+      }
+    }
+  })
+  
+  // Sort by date
+  return monthEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+})
+
+const totalMonthProfit = computed(() => {
+  return monthEventBreakdown.value.reduce((sum, event) => sum + event.totalProfit, 0)
+})
+
+const handleMonthClick = (monthIndex: number, monthLabel: string) => {
+  selectedMonthIndex.value = monthIndex
+  selectedMonth.value = monthLabel
+  showProfitModal.value = true
+}
+
+const closeProfitModal = () => {
+  showProfitModal.value = false
+  selectedMonthIndex.value = -1
+  selectedMonth.value = ''
 }
 
 const averageRSVPs = computed(() => {
@@ -271,6 +407,13 @@ const formatDate = (dateString: string): string => {
   })
 }
 
+const refreshCodes = async () => {
+  const fetchedCodes = await api.getInvitationCodes()
+  codes.value = fetchedCodes
+  unusedCodes.value = codes.value.filter(c => c.status === 'unused').length
+  totalCodes.value = codes.value.length
+}
+
 onMounted(async () => {
   members.value = await api.getMembers()
   totalMembers.value = members.value.length
@@ -284,13 +427,18 @@ onMounted(async () => {
     return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear
   }).length
   
-  codes.value = await api.getInvitationCodes()
-  unusedCodes.value = codes.value.filter(c => c.status === 'unused').length
-  totalCodes.value = codes.value.length
+  await refreshCodes()
   
   events.value = await api.getEvents()
   totalEvents.value = events.value.length
   upcomingEvents.value = upcomingEventsList.value.length
+
+  // Listen for invitation code updates from other views
+  window.addEventListener('codes-updated', refreshCodes)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('codes-updated', refreshCodes)
 })
 </script>
 
@@ -742,6 +890,367 @@ onMounted(async () => {
 @media (max-width: 968px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn var(--transition-base);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border: 1px solid var(--color-gold-subtle);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl), var(--shadow-gold), 0 0 40px rgba(212, 175, 55, 0.2);
+  animation: slideUp 0.3s ease-out;
+}
+
+.profit-modal {
+  max-width: 900px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-2xl);
+  border-bottom: 1px solid var(--color-gray-soft);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
+}
+
+.modal-header-content {
+  flex: 1;
+}
+
+.modal-title {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-gold);
+  margin: 0 0 var(--spacing-xs) 0;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 20px var(--color-gold-glow);
+}
+
+.modal-subtitle {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 500;
+}
+
+.modal-close {
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  color: #888;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  color: var(--color-gold);
+  background: var(--color-gray-soft);
+  border-color: var(--color-gold-subtle);
+  transform: rotate(90deg);
+}
+
+.modal-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.modal-body {
+  padding: var(--spacing-2xl);
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Profit Summary */
+.profit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.summary-card {
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  transition: all var(--transition-base);
+}
+
+.summary-card:hover {
+  border-color: var(--color-gold-subtle);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+  border-color: var(--color-gold-subtle);
+}
+
+.summary-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+}
+
+.summary-value {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-gold);
+  text-shadow: 0 0 10px var(--color-gold-glow);
+}
+
+.summary-card.highlight .summary-value {
+  font-size: 28px;
+}
+
+.breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.breakdown-item {
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  transition: all var(--transition-base);
+  animation: slideInRight 0.4s ease-out backwards;
+  animation-fill-mode: forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.breakdown-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--color-gold);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.breakdown-item:hover {
+  border-color: var(--color-gold-subtle);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+}
+
+.breakdown-item:hover::before {
+  opacity: 1;
+}
+
+.breakdown-event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-lg);
+}
+
+.breakdown-event-info {
+  flex: 1;
+}
+
+.breakdown-event-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.3;
+}
+
+.breakdown-event-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.breakdown-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 13px;
+  color: #888;
+}
+
+.breakdown-meta-item svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.breakdown-event-profit-badge {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%);
+  border: 1px solid var(--color-gold-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.profit-badge-label {
+  display: block;
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.profit-badge-value {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-gold);
+  text-shadow: 0 0 10px var(--color-gold-glow);
+}
+
+.breakdown-event-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+.breakdown-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-dark-soft);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.breakdown-stat:hover {
+  border-color: var(--color-gold-subtle);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.breakdown-stat-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.breakdown-stat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.breakdown-stat-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.breakdown-stat-value {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-gold);
+  text-shadow: 0 0 8px var(--color-gold-glow);
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .profit-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .breakdown-event-header {
+    flex-direction: column;
+  }
+
+  .breakdown-event-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .breakdown-event-meta {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
 </style>
