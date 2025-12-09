@@ -138,6 +138,45 @@ export const updateMember = async (req: Request, res: Response) => {
   }
 }
 
+export const createMember = async (req: Request, res: Response) => {
+  try {
+    const clubId = getClubId(req)
+    const { name, email, phone, city, interests, status, invitationCode } = req.body
+    
+    if (!name || !email || !phone) {
+      return res.status(400).json({ message: 'Name, email, and phone are required' })
+    }
+    
+    // Check if member with same email already exists in this club
+    const existingMember = mockMembers.find(m => m.email.toLowerCase() === email.toLowerCase() && m.clubId === clubId)
+    if (existingMember) {
+      return res.status(400).json({ message: 'Member with this email already exists' })
+    }
+    
+    // Generate new member ID
+    const newId = `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    const newMember = {
+      id: newId,
+      name,
+      email,
+      phone,
+      city: city || undefined,
+      interests: interests || [],
+      status: status || 'invited',
+      joinedDate: new Date().toISOString(),
+      invitationCode: invitationCode || undefined,
+      clubId
+    }
+    
+    mockMembers.push(newMember)
+    
+    res.status(201).json(newMember)
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
 export const deleteMember = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)

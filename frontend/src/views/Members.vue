@@ -69,13 +69,22 @@
         <div class="interests-section">
           <div class="section-header">
             <h2 class="section-title">Your Interests</h2>
-            <div v-if="selectedMembers.length > 0" class="bulk-actions-toolbar">
-              <span class="selected-count">{{ selectedMembers.length }} selected</span>
-              <button class="btn btn-sm btn-secondary" @click="showBulkStatusModal = true">Update Status</button>
-              <button class="btn btn-sm btn-secondary" @click="showBulkInterestsModal = true">Assign Interests</button>
-              <button class="btn btn-sm btn-primary" @click="showBulkEmailModal = true">Send Email</button>
-              <button class="btn btn-sm btn-danger" @click="showBulkDeleteModal = true">Delete</button>
-              <button class="btn btn-sm btn-secondary" @click="clearSelection">Clear</button>
+            <div class="header-actions">
+              <button class="btn btn-primary" @click="showAddMemberModal = true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Member
+              </button>
+              <div v-if="selectedMembers.length > 0" class="bulk-actions-toolbar">
+                <span class="selected-count">{{ selectedMembers.length }} selected</span>
+                <button class="btn btn-sm btn-secondary" @click="showBulkStatusModal = true">Update Status</button>
+                <button class="btn btn-sm btn-secondary" @click="showBulkInterestsModal = true">Assign Interests</button>
+                <button class="btn btn-sm btn-primary" @click="showBulkEmailModal = true">Send Email</button>
+                <button class="btn btn-sm btn-danger" @click="showBulkDeleteModal = true">Delete</button>
+                <button class="btn btn-sm btn-secondary" @click="clearSelection">Clear</button>
+              </div>
             </div>
           </div>
           <div class="table-container">
@@ -274,6 +283,131 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Member Modal -->
+    <div v-if="showAddMemberModal" class="modal-overlay" @click.self="closeAddMemberModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Add New Member</h3>
+          <button class="modal-close" @click="closeAddMemberModal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name *</label>
+                <input 
+                  v-model="newMember.name" 
+                  type="text" 
+                  :class="['form-input', { 'input-error': errors.name }]"
+                  placeholder="Full name"
+                  @input="clearError('name')"
+                />
+                <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
+              </div>
+              <div class="form-group">
+                <label>Email *</label>
+                <input 
+                  v-model="newMember.email" 
+                  type="email" 
+                  :class="['form-input', { 'input-error': errors.email }]"
+                  placeholder="email@example.com"
+                  @input="clearError('email')"
+                />
+                <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Phone *</label>
+                <input 
+                  v-model="newMember.phone" 
+                  type="tel" 
+                  :class="['form-input', { 'input-error': errors.phone }]"
+                  placeholder="+1 234 567 8900"
+                  @input="clearError('phone')"
+                />
+                <span v-if="errors.phone" class="error-message">{{ errors.phone }}</span>
+              </div>
+              <div class="form-group">
+                <label>City</label>
+                <input 
+                  v-model="newMember.city" 
+                  type="text" 
+                  class="form-input" 
+                  placeholder="City name"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Status</label>
+                <select v-model="newMember.status" class="form-input">
+                  <option value="invited">Invited</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Invitation Code</label>
+                <input 
+                  v-model="newMember.invitationCode" 
+                  type="text" 
+                  class="form-input" 
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Interests</label>
+              <div class="interests-chips-container">
+                <div 
+                  v-for="interest in interests" 
+                  :key="interest.id"
+                  :class="['interest-chip-selectable', { selected: newMember.interests.includes(interest.name) }]"
+                  @click="toggleInterest(interest.name)"
+                >
+                  <svg 
+                    v-if="newMember.interests.includes(interest.name)"
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    stroke-width="2"
+                    class="chip-check-icon"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span class="chip-text">{{ interest.name }}</span>
+                </div>
+                <div v-if="interests.length === 0" class="no-interests-message">
+                  <p>No interests available. Add interests in Settings.</p>
+                </div>
+              </div>
+              <div v-if="newMember.interests.length > 0" class="selected-interests-summary">
+                <span class="summary-text">{{ newMember.interests.length }} selected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeAddMemberModal">Cancel</button>
+          <button 
+            class="btn btn-primary" 
+            @click="handleAddMember"
+            :disabled="isAddingMember"
+          >
+            {{ isAddingMember ? 'Adding...' : 'Add Member' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -289,6 +423,24 @@ const members = ref<Member[]>([])
 const interests = ref<Interest[]>([])
 const filteredMembers = ref<Member[]>([])
 const selectedMembers = ref<string[]>([])
+
+// Add member modal
+const showAddMemberModal = ref(false)
+const isAddingMember = ref(false)
+const newMember = ref({
+  name: '',
+  email: '',
+  phone: '',
+  city: '',
+  interests: [] as string[],
+  status: 'invited' as 'active' | 'inactive' | 'invited',
+  invitationCode: ''
+})
+const errors = ref<{
+  name?: string
+  email?: string
+  phone?: string
+}>({})
 
 // Bulk operation modals
 const showBulkStatusModal = ref(false)
@@ -514,6 +666,97 @@ const handleBulkDelete = async () => {
     await applyFilters()
   } catch (error: any) {
     toast.showToast(error.message || 'Failed to delete members', 'error')
+  }
+}
+
+const validateMemberForm = (): boolean => {
+  errors.value = {}
+  let isValid = true
+
+  // Validate name
+  if (!newMember.value.name || newMember.value.name.trim() === '') {
+    errors.value.name = 'Name is required'
+    isValid = false
+  }
+
+  // Validate email
+  if (!newMember.value.email || newMember.value.email.trim() === '') {
+    errors.value.email = 'Email is required'
+    isValid = false
+  } else {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newMember.value.email)) {
+      errors.value.email = 'Please enter a valid email address'
+      isValid = false
+    }
+  }
+
+  // Validate phone
+  if (!newMember.value.phone || newMember.value.phone.trim() === '') {
+    errors.value.phone = 'Phone is required'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const clearError = (field: 'name' | 'email' | 'phone') => {
+  if (errors.value[field]) {
+    delete errors.value[field]
+  }
+}
+
+const handleAddMember = async () => {
+  // Validate form
+  if (!validateMemberForm()) {
+    toast.showToast('Please fill in all required fields correctly', 'error')
+    return
+  }
+  
+  isAddingMember.value = true
+  try {
+    const created = await api.createMember({
+      name: newMember.value.name.trim(),
+      email: newMember.value.email.trim(),
+      phone: newMember.value.phone.trim(),
+      city: newMember.value.city?.trim() || undefined,
+      interests: newMember.value.interests,
+      status: newMember.value.status,
+      invitationCode: newMember.value.invitationCode?.trim() || undefined
+    })
+    toast.showToast(`Member "${created.name}" added successfully`, 'success')
+    closeAddMemberModal()
+    // Refresh members list
+    members.value = await api.getMembers()
+    filteredMembers.value = [...members.value]
+  } catch (error: any) {
+    toast.showToast(error.message || 'Failed to add member', 'error')
+  } finally {
+    isAddingMember.value = false
+  }
+}
+
+const toggleInterest = (interestName: string) => {
+  const index = newMember.value.interests.indexOf(interestName)
+  if (index > -1) {
+    newMember.value.interests.splice(index, 1)
+  } else {
+    newMember.value.interests.push(interestName)
+  }
+}
+
+const closeAddMemberModal = () => {
+  showAddMemberModal.value = false
+  errors.value = {}
+  newMember.value = {
+    name: '',
+    email: '',
+    phone: '',
+    city: '',
+    interests: [],
+    status: 'invited',
+    invitationCode: ''
   }
 }
 
@@ -925,6 +1168,21 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-xl);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.header-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .bulk-actions-toolbar {
@@ -1014,12 +1272,68 @@ onMounted(async () => {
   max-width: 700px;
 }
 
-.modal-content h3 {
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-soft);
+}
+
+.modal-header h3 {
   font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 600;
   color: var(--color-gold);
-  margin: 0 0 var(--spacing-xl) 0;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+}
+
+.modal-close:hover {
+  background: var(--color-gray);
+  color: #ffffff;
+}
+
+.modal-body {
+  margin-bottom: var(--spacing-xl);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .modal-form {
@@ -1056,43 +1370,134 @@ onMounted(async () => {
   box-shadow: 0 0 0 2px var(--color-gold-subtle);
 }
 
+.form-input.input-error {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.form-input.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 6px;
+  font-weight: 500;
+  animation: slideDown 0.2s ease-out;
+}
+
+.error-message::before {
+  content: '⚠';
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .form-textarea {
   resize: vertical;
   min-height: 120px;
 }
 
-.interests-checkboxes {
+.interests-chips-container {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
-  max-height: 200px;
-  overflow-y: auto;
-  padding: var(--spacing-sm);
+  padding: var(--spacing-md);
   background: var(--color-gray);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  align-content: flex-start;
 }
 
-.checkbox-label {
-  display: flex;
+.interest-chip-selectable {
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  font-size: 14px;
+  gap: var(--spacing-xs);
+  padding: 8px 14px;
+  background: var(--color-dark-soft);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-full);
+  font-size: 13px;
   color: #ffffff;
   cursor: pointer;
-  padding: var(--spacing-xs);
+  transition: all var(--transition-base);
+  user-select: none;
+  font-weight: 500;
+}
+
+.interest-chip-selectable:hover {
+  background: var(--color-gray);
+  border-color: var(--color-gold-subtle);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.interest-chip-selectable.selected {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-gold-subtle);
+}
+
+.interest-chip-selectable.selected:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(212, 175, 55, 0.15) 100%);
+  box-shadow: 0 0 0 2px var(--color-gold-subtle), var(--shadow-gold);
+}
+
+.chip-check-icon {
+  flex-shrink: 0;
+  color: var(--color-gold);
+}
+
+.chip-text {
+  white-space: nowrap;
+}
+
+.no-interests-message {
+  width: 100%;
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: #888;
+  font-size: 14px;
+}
+
+.no-interests-message p {
+  margin: 0;
+}
+
+.selected-interests-summary {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-gold-subtle);
+  border: 1px solid var(--color-gold-subtle);
   border-radius: var(--radius-sm);
-  transition: background var(--transition-base);
+  display: inline-block;
 }
 
-.checkbox-label:hover {
-  background: var(--color-gray-soft);
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--color-gold);
+.summary-text {
+  font-size: 12px;
+  color: var(--color-gold);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .modal-actions {

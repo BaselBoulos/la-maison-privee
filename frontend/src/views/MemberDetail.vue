@@ -8,8 +8,8 @@
         Back to Members
       </button>
       <div class="header-actions">
-        <button class="btn btn-secondary" @click="showEditModal = true">Edit Member</button>
-        <button class="btn btn-danger" @click="deleteMember">Delete Member</button>
+        <button class="btn btn-secondary" @click="openEditModal">Edit Member</button>
+        <button class="btn btn-danger" @click="showDeleteModal = true">Delete Member</button>
       </div>
     </div>
 
@@ -94,23 +94,201 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Member Modal -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Edit Member</h3>
+          <button class="modal-close" @click="closeEditModal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name *</label>
+                <input 
+                  v-model="editForm.name" 
+                  type="text" 
+                  :class="['form-input', { 'input-error': editErrors.name }]"
+                  placeholder="Full name"
+                  @input="clearEditError('name')"
+                />
+                <span v-if="editErrors.name" class="error-message">{{ editErrors.name }}</span>
+              </div>
+              <div class="form-group">
+                <label>Email *</label>
+                <input 
+                  v-model="editForm.email" 
+                  type="email" 
+                  :class="['form-input', { 'input-error': editErrors.email }]"
+                  placeholder="email@example.com"
+                  @input="clearEditError('email')"
+                />
+                <span v-if="editErrors.email" class="error-message">{{ editErrors.email }}</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Phone *</label>
+                <input 
+                  v-model="editForm.phone" 
+                  type="tel" 
+                  :class="['form-input', { 'input-error': editErrors.phone }]"
+                  placeholder="+1 234 567 8900"
+                  @input="clearEditError('phone')"
+                />
+                <span v-if="editErrors.phone" class="error-message">{{ editErrors.phone }}</span>
+              </div>
+              <div class="form-group">
+                <label>City</label>
+                <input 
+                  v-model="editForm.city" 
+                  type="text" 
+                  class="form-input" 
+                  placeholder="City name"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Status</label>
+                <select v-model="editForm.status" class="form-select form-select-readonly" disabled>
+                  <option value="invited">Invited</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Invitation Code</label>
+                <input 
+                  v-model="editForm.invitationCode" 
+                  type="text" 
+                  class="form-input form-input-readonly" 
+                  placeholder="N/A"
+                  readonly
+                  disabled
+                />
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Interests</label>
+              <div class="interests-chips-container">
+                <div 
+                  v-for="interest in availableInterests" 
+                  :key="interest.id"
+                  :class="['interest-chip-selectable', { selected: editForm.interests.includes(interest.name) }]"
+                  @click="toggleEditInterest(interest.name)"
+                >
+                  <svg 
+                    v-if="editForm.interests.includes(interest.name)"
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    stroke-width="2"
+                    class="chip-check-icon"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span class="chip-text">{{ interest.name }}</span>
+                </div>
+                <div v-if="availableInterests.length === 0" class="no-interests-message">
+                  <p>No interests available. Add interests in Settings.</p>
+                </div>
+              </div>
+              <div v-if="editForm.interests.length > 0" class="selected-interests-summary">
+                <span class="summary-text">{{ editForm.interests.length }} selected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
+          <button 
+            class="btn btn-primary" 
+            @click="handleUpdateMember"
+            :disabled="isUpdating"
+          >
+            {{ isUpdating ? 'Updating...' : 'Update Member' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Member Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+      <div class="modal-content delete-modal">
+        <div class="delete-modal-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div class="delete-modal-content">
+          <h3 class="delete-modal-title">Delete Member</h3>
+          <p class="delete-modal-message">
+            Are you sure you want to delete <strong>{{ member?.name }}</strong>?
+          </p>
+          <p class="delete-modal-warning">
+            This action cannot be undone. All member data, event history, and associated records will be permanently removed.
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="showDeleteModal = false">Cancel</button>
+          <button class="btn btn-danger" @click="confirmDeleteMember" :disabled="isDeleting">
+            {{ isDeleting ? 'Deleting...' : 'Delete Member' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
   <div v-else class="loading-state">
-    <p>Loading member...</p>
+    <SkeletonLoader type="card" style="height: 300px; margin-bottom: 24px;" />
+    <SkeletonLoader type="card" style="height: 400px; margin-bottom: 24px;" />
+    <SkeletonLoader type="card" style="height: 200px;" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, type Member, type Event } from '../services/api'
+import { api, type Member, type Event, type Interest } from '../services/api'
 import MemberTierBadge from '../components/MemberTierBadge.vue'
+import SkeletonLoader from '../components/SkeletonLoader.vue'
+import { useToast } from '../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 const member = ref<Member | null>(null)
 const events = ref<Event[]>([])
+const availableInterests = ref<Interest[]>([])
 const showEditModal = ref(false)
+const showDeleteModal = ref(false)
+const isDeleting = ref(false)
+const isUpdating = ref(false)
+const editForm = ref({
+  name: '',
+  email: '',
+  phone: '',
+  city: '',
+  interests: [] as string[],
+  status: 'invited' as 'active' | 'inactive' | 'invited',
+  invitationCode: ''
+})
+const editErrors = ref<{
+  name?: string
+  email?: string
+  phone?: string
+}>({})
 
 const memberEvents = computed(() => {
   if (!member.value) return []
@@ -148,12 +326,116 @@ const formatDate = (dateString: string): string => {
   })
 }
 
-const deleteMember = async () => {
-  if (confirm('Are you sure you want to delete this member?')) {
-    if (member.value) {
-      await api.deleteMember(member.value.id)
-      router.push({ name: 'members' })
+const openEditModal = () => {
+  if (!member.value) return
+  editForm.value = {
+    name: member.value.name,
+    email: member.value.email,
+    phone: member.value.phone || '',
+    city: member.value.city || '',
+    interests: [...(member.value.interests || [])],
+    status: member.value.status,
+    invitationCode: member.value.invitationCode || ''
+  }
+  editErrors.value = {}
+  showEditModal.value = true
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  editErrors.value = {}
+}
+
+const validateEditForm = (): boolean => {
+  editErrors.value = {}
+  let isValid = true
+
+  // Validate name
+  if (!editForm.value.name || editForm.value.name.trim() === '') {
+    editErrors.value.name = 'Name is required'
+    isValid = false
+  }
+
+  // Validate email
+  if (!editForm.value.email || editForm.value.email.trim() === '') {
+    editErrors.value.email = 'Email is required'
+    isValid = false
+  } else {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(editForm.value.email)) {
+      editErrors.value.email = 'Please enter a valid email address'
+      isValid = false
     }
+  }
+
+  // Validate phone
+  if (!editForm.value.phone || editForm.value.phone.trim() === '') {
+    editErrors.value.phone = 'Phone is required'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const clearEditError = (field: 'name' | 'email' | 'phone') => {
+  if (editErrors.value[field]) {
+    delete editErrors.value[field]
+  }
+}
+
+const toggleEditInterest = (interestName: string) => {
+  const index = editForm.value.interests.indexOf(interestName)
+  if (index > -1) {
+    editForm.value.interests.splice(index, 1)
+  } else {
+    editForm.value.interests.push(interestName)
+  }
+}
+
+const handleUpdateMember = async () => {
+  if (!member.value) return
+
+  // Validate form
+  if (!validateEditForm()) {
+    toast.showToast('Please fill in all required fields correctly', 'error')
+    return
+  }
+
+  isUpdating.value = true
+  try {
+    const updated = await api.updateMember(member.value.id, {
+      name: editForm.value.name.trim(),
+      email: editForm.value.email.trim(),
+      phone: editForm.value.phone.trim(),
+      city: editForm.value.city?.trim() || undefined,
+      interests: editForm.value.interests
+      // Note: invitationCode and status are not editable, so we don't send them
+    })
+    member.value = updated
+    toast.showToast('Member updated successfully', 'success')
+    closeEditModal()
+  } catch (error: any) {
+    toast.showToast(error.message || 'Failed to update member', 'error')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+const confirmDeleteMember = async () => {
+  if (!member.value) return
+  
+  isDeleting.value = true
+  try {
+    await api.deleteMember(member.value.id)
+    toast.showToast('Member deleted successfully', 'success')
+    router.push({ name: 'members' })
+  } catch (error: any) {
+    console.error('Failed to delete member:', error)
+    toast.showToast('Failed to delete member. Please try again.', 'error')
+  } finally {
+    isDeleting.value = false
+    showDeleteModal.value = false
   }
 }
 
@@ -161,6 +443,7 @@ onMounted(async () => {
   const memberId = route.params.id as string
   member.value = await api.getMember(memberId)
   events.value = await api.getEvents()
+  availableInterests.value = await api.getInterests()
 })
 </script>
 
@@ -476,6 +759,377 @@ onMounted(async () => {
   text-align: center;
   padding: 60px;
   color: #888;
+}
+
+/* Delete Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-xl);
+  animation: fadeIn var(--transition-base);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 
+    0 25px 70px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(212, 175, 55, 0.15) inset;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slideDown var(--transition-slow);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.delete-modal {
+  max-width: 500px;
+  text-align: center;
+}
+
+.delete-modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--spacing-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-full);
+  color: #ef4444;
+}
+
+.delete-modal-content {
+  margin-bottom: var(--spacing-xl);
+}
+
+.delete-modal-title {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.delete-modal-message {
+  font-size: 16px;
+  color: #ffffff;
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.6;
+}
+
+.delete-modal-message strong {
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+.delete-modal-warning {
+  font-size: 14px;
+  color: #888;
+  margin: var(--spacing-lg) 0 0 0;
+  line-height: 1.6;
+  padding: var(--spacing-md);
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  margin-top: var(--spacing-xl);
+}
+
+.modal-content.modal-large {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-soft);
+}
+
+.modal-header h3 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-gold);
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+}
+
+.modal-close:hover {
+  background: var(--color-gray);
+  color: #ffffff;
+}
+
+.modal-body {
+  margin-bottom: var(--spacing-xl);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.form-input {
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-family: var(--font-body);
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-gold-subtle);
+}
+
+.form-input.input-error {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.form-input.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.form-input-readonly,
+.form-input:read-only,
+.form-input:disabled {
+  background: var(--color-black-soft);
+  border-color: var(--color-gray);
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-input-readonly:focus,
+.form-input:read-only:focus,
+.form-input:disabled:focus {
+  border-color: var(--color-gray);
+  box-shadow: none;
+}
+
+.form-select-readonly,
+.form-select:disabled,
+select:disabled {
+  background: var(--color-black-soft);
+  border-color: var(--color-gray);
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-select-readonly:focus,
+.form-select:disabled:focus,
+select:disabled:focus {
+  border-color: var(--color-gray);
+  box-shadow: none;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 6px;
+  font-weight: 500;
+  animation: slideDown 0.2s ease-out;
+}
+
+.error-message::before {
+  content: '⚠';
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.interests-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-gray);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  align-content: flex-start;
+}
+
+.interest-chip-selectable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 8px 14px;
+  background: var(--color-dark-soft);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  user-select: none;
+  font-weight: 500;
+}
+
+.interest-chip-selectable:hover {
+  background: var(--color-gray);
+  border-color: var(--color-gold-subtle);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.interest-chip-selectable.selected {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-gold-subtle);
+}
+
+.interest-chip-selectable.selected:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(212, 175, 55, 0.15) 100%);
+  box-shadow: 0 0 0 2px var(--color-gold-subtle), var(--shadow-gold);
+}
+
+.chip-check-icon {
+  flex-shrink: 0;
+  color: var(--color-gold);
+}
+
+.chip-text {
+  white-space: nowrap;
+}
+
+.no-interests-message {
+  width: 100%;
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: #888;
+  font-size: 14px;
+}
+
+.no-interests-message p {
+  margin: 0;
+}
+
+.selected-interests-summary {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-gold-subtle);
+  border: 1px solid var(--color-gold-subtle);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.summary-text {
+  font-size: 12px;
+  color: var(--color-gold);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  color: #000000;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>
 

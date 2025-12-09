@@ -41,46 +41,57 @@ const { toasts, removeToast } = useToast()
 <style>
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 90px;
+  right: 24px;
   z-index: 10000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   pointer-events: none;
+  max-width: calc(100vw - 48px);
 }
 
 .toast {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
-  background: #141414;
-  border: 1px solid #2a2a2a;
-  border-radius: 8px;
-  min-width: 300px;
-  max-width: 400px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.98) 100%);
+  border: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-lg);
+  min-width: 320px;
+  max-width: 450px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(212, 175, 55, 0.1) inset;
   pointer-events: auto;
   cursor: pointer;
   transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .toast:hover {
   transform: translateX(-4px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(212, 175, 55, 0.2) inset,
+    0 0 20px rgba(212, 175, 55, 0.1);
+  border-color: var(--color-gold-subtle);
 }
 
 .toast-success {
   border-left: 4px solid #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(20, 20, 20, 0.98) 100%);
 }
 
 .toast-error {
   border-left: 4px solid #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(20, 20, 20, 0.98) 100%);
 }
 
 .toast-info {
   border-left: 4px solid #3b82f6;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(20, 20, 20, 0.98) 100%);
 }
 
 .toast-icon {

@@ -134,6 +134,13 @@ export const api = {
     return apiRequest<Member>(`/members/${id}`)
   },
 
+  async createMember(data: Omit<Member, 'id' | 'joinedDate' | 'tier'>): Promise<Member> {
+    return apiRequest<Member>('/members', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
   async updateMember(id: string, data: Partial<Member>): Promise<Member> {
     return apiRequest<Member>(`/members/${id}`, {
       method: 'PUT',

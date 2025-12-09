@@ -492,7 +492,9 @@
     </div>
   </div>
   <div v-else class="loading-state">
-    <p>Loading event...</p>
+    <SkeletonLoader type="card" style="height: 400px; margin-bottom: 24px;" />
+    <SkeletonLoader type="card" style="height: 300px; margin-bottom: 24px;" />
+    <SkeletonLoader type="card" style="height: 200px;" />
   </div>
 </template>
 
@@ -501,6 +503,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, type Event, type Member } from '../services/api'
 import { useToast } from '../composables/useToast'
+import SkeletonLoader from '../components/SkeletonLoader.vue'
 
 const route = useRoute()
 const router = useRouter()

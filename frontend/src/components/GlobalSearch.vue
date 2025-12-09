@@ -27,8 +27,9 @@
       
       <div class="search-results" v-if="searchQuery">
         <div v-if="isSearching" class="search-loading">
-          <div class="spinner-small"></div>
-          <span>Searching...</span>
+          <SkeletonLoader type="card" style="height: 60px; margin-bottom: 8px;" />
+          <SkeletonLoader type="card" style="height: 60px; margin-bottom: 8px;" />
+          <SkeletonLoader type="card" style="height: 60px;" />
         </div>
         <div v-else-if="searchResults.length > 0" class="results-list">
           <div 
@@ -76,6 +77,7 @@
 import { ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, type Member, type Event } from '../services/api'
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const props = defineProps<{
   showSearch: boolean

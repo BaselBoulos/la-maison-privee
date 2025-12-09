@@ -1,5 +1,5 @@
 import express from 'express'
-import { getMembers, getMember, updateMember, deleteMember, getFilteredMembers } from '../controllers/memberController'
+import { getMembers, getMember, createMember, updateMember, deleteMember, getFilteredMembers } from '../controllers/memberController'
 
 const router = express.Router()
 
@@ -8,6 +8,9 @@ router.get('/', getMembers)
 
 // Get filtered members for event targeting
 router.get('/filtered', getFilteredMembers)
+
+// Create new member
+router.post('/', createMember)
 
 // Get single member
 router.get('/:id', getMember)
