@@ -1,5 +1,17 @@
 <template>
   <div class="settings-page">
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
+      </div>
+    </div>
     <h1 class="page-title">Settings</h1>
     
     <div class="settings-sections">
@@ -247,23 +259,69 @@
         <button class="modal-close" @click="closeDeleteModal">×</button>
       </div>
       <div class="modal-body">
-        <p>Are you sure you want to delete <strong>{{ deleteTarget?.name }}</strong>? This cannot be undone.</p>
+        <p v-if="!deleteError">Are you sure you want to delete <strong>{{ deleteTarget?.name }}</strong>? This cannot be undone.</p>
+        
+        <!-- Error Display with Member Details -->
+        <div v-if="deleteError" class="delete-error-container">
+          <div class="error-icon">⚠️</div>
+          <div class="error-content">
+            <p class="error-message">{{ deleteError }}</p>
+            <p class="error-hint">Please remove this interest from the following members first, or use the "Remove from all" button below:</p>
+            
+            <div v-if="deleteErrorDetails?.members" class="members-list-container">
+              <div class="members-list-header">
+                <span class="members-count">{{ deleteErrorDetails.memberCount }} member{{ deleteErrorDetails.memberCount > 1 ? 's' : '' }}</span>
+                <button 
+                  class="btn-remove-all"
+                  @click="removeFromAllMembers"
+                  :disabled="removingFromMembers"
+                >
+                  <span v-if="!removingFromMembers">Remove from all</span>
+                  <span v-else class="loading-inline">Removing...</span>
+                </button>
+              </div>
+              <div class="members-list">
+                <div 
+                  v-for="member in deleteErrorDetails.members" 
+                  :key="member.id"
+                  class="member-item"
+                  @click="navigateToMember(member.id)"
+                >
+                  <div class="member-info">
+                    <span class="member-name">{{ member.name }}</span>
+                    <span class="member-email">{{ member.email }}</span>
+                  </div>
+                  <span class="member-link">Edit →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-actions">
-        <button class="btn secondary" @click="closeDeleteModal">Cancel</button>
-        <button class="btn btn-danger" @click="confirmDelete" :disabled="deletingInterest">
+        <button class="btn secondary" @click="closeDeleteModal">Close</button>
+        <button 
+          v-if="!deleteError" 
+          class="btn btn-danger" 
+          @click="confirmDelete" 
+          :disabled="deletingInterest"
+        >
           <span v-if="!deletingInterest">Delete</span>
           <span v-else class="loading-inline">Deleting...</span>
         </button>
       </div>
-      <p v-if="deleteError" class="error-text">{{ deleteError }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { api, type Interest, type Club } from '../services/api'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
+
+const router = useRouter()
 const allInterests = ref<Interest[]>([])
 const newInterestName = ref('')
 const searchQuery = ref('')
@@ -285,9 +343,14 @@ const clubs = ref<Club[]>([])
 const selectedClubId = ref<number | null>(null)
 const deletingClub = ref(false)
 const deleteError = ref('')
+const deleteErrorDetails = ref<{ memberCount: number; members: Array<{ id: string; name: string; email: string }> } | null>(null)
 const showDeleteModal = ref(false)
 const deleteTarget = ref<Interest | null>(null)
 const deletingInterest = ref(false)
+const removingFromMembers = ref(false)
+
+// Body scroll lock - lock when modal is open
+useBodyScrollLock(showDeleteModal)
 
 const filteredInterests = computed(() => {
   let filtered = [...allInterests.value]
@@ -332,24 +395,71 @@ const promptDeleteInterest = (interest: Interest) => {
   deleteTarget.value = interest
   showDeleteModal.value = true
   deleteError.value = ''
+  deleteErrorDetails.value = null
 }
 
 const closeDeleteModal = () => {
   showDeleteModal.value = false
   deleteTarget.value = null
   deletingInterest.value = false
+  deleteError.value = ''
+  deleteErrorDetails.value = null
 }
 
 const confirmDelete = async () => {
   if (!deleteTarget.value) return
   deletingInterest.value = true
+  deleteError.value = ''
+  deleteErrorDetails.value = null
   try {
     await api.deleteInterest(deleteTarget.value.id)
     allInterests.value = await api.getAllInterests()
     closeDeleteModal()
   } catch (e: any) {
     deleteError.value = e?.message || 'Failed to delete interest'
+    // Check if error response contains member details
+    if (e?.response?.data?.members) {
+      deleteErrorDetails.value = {
+        memberCount: e.response.data.memberCount || e.response.data.members.length,
+        members: e.response.data.members
+      }
+    }
     deletingInterest.value = false
+  }
+}
+
+const navigateToMember = (memberId: string) => {
+  closeDeleteModal()
+  router.push(`/members/${memberId}`)
+}
+
+const removeFromAllMembers = async () => {
+  if (!deleteTarget.value || !deleteErrorDetails.value?.members) return
+  
+  removingFromMembers.value = true
+  try {
+    const memberIds = deleteErrorDetails.value.members.map(m => m.id)
+    await api.bulkRemoveInterests(memberIds, [deleteTarget.value.name])
+    
+    // Retry deleting the interest
+    await api.deleteInterest(deleteTarget.value.id)
+    allInterests.value = await api.getAllInterests()
+    closeDeleteModal()
+  } catch (e: any) {
+    deleteError.value = e?.message || 'Failed to remove interest from members'
+    // Refresh error details in case some members still have it
+    try {
+      await api.deleteInterest(deleteTarget.value.id)
+    } catch (retryError: any) {
+      if (retryError?.response?.data?.members) {
+        deleteErrorDetails.value = {
+          memberCount: retryError.response.data.memberCount || retryError.response.data.members.length,
+          members: retryError.response.data.members
+        }
+      }
+    }
+  } finally {
+    removingFromMembers.value = false
   }
 }
 
@@ -357,7 +467,7 @@ const loadClubs = async () => {
   try {
     const list = await api.getClubs()
     clubs.value = list
-    if (!selectedClubId.value && list.length) {
+    if (!selectedClubId.value && list.length > 0 && list[0]) {
       selectedClubId.value = list[0].id
     }
   } catch (e: any) {
@@ -406,17 +516,30 @@ const toggleTierRulesExpanded = () => {
   tierRulesExpanded.value = !tierRulesExpanded.value
 }
 
-onMounted(async () => {
-  allInterests.value = await api.getAllInterests()
-  if (userRole.value === 'super') {
-    loadClubs()
+const refreshData = async () => {
+  try {
+    allInterests.value = await api.getAllInterests()
+    if (userRole.value === 'super') {
+      await loadClubs()
+    }
+  } catch (error: any) {
+    // Silent refresh - no toast
   }
+}
+
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(refreshData)
+
+onMounted(async () => {
+  await refreshData()
 })
 </script>
 
 <style scoped>
 .settings-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-title {
@@ -944,7 +1067,161 @@ input:checked + .slider:before {
 .error-text { color: #ff6b6b; margin-top: 8px; }
 
 .confirm-modal {
-  max-width: 420px;
+  max-width: 520px;
+}
+
+.delete-error-container {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(139, 38, 53, 0.15), rgba(92, 15, 31, 0.15));
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.error-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error-message {
+  color: #ff6b6b;
+  font-weight: 600;
+  font-size: 15px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.error-hint {
+  color: #ccc;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.members-list-container {
+  margin-top: 12px;
+}
+
+.members-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.members-count {
+  color: #ccc;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btn-remove-all {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.1));
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 6px;
+  color: var(--color-gold);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-all:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.2));
+  border-color: rgba(212, 175, 55, 0.6);
+  transform: translateY(-1px);
+}
+
+.btn-remove-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.members-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.members-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.members-list::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
+  border-radius: 3px;
+}
+
+.members-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.member-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(212, 175, 55, 0.4);
+  transform: translateX(4px);
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.member-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.member-email {
+  color: #999;
+  font-size: 12px;
+}
+
+.member-link {
+  color: var(--color-gold);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.member-item:hover .member-link {
+  opacity: 1;
 }
 
 /* Modal Styles */
@@ -964,17 +1241,23 @@ input:checked + .slider:before {
   border: 1px solid rgba(212, 175, 55, 0.25);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02);
   border-radius: 12px;
-  padding: 20px;
+  padding: 0;
   width: 100%;
   max-width: 520px;
   color: #fff;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  padding: 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
 }
 
 .modal-close {
@@ -986,14 +1269,23 @@ input:checked + .slider:before {
 }
 
 .modal-body {
-  margin-bottom: 16px;
+  padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
   color: #ddd;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  padding: 20px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
+  background: linear-gradient(135deg, #0f0f0f, #0a0a0a);
 }
 
 .btn {
@@ -1041,6 +1333,203 @@ input:checked + .slider:before {
 .form-input:focus {
   outline: none;
   border-color: #d4af37;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 24px;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .settings-section {
+    padding: var(--spacing-lg);
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  /* Tier Rules Mobile Optimizations */
+  .tier-rules-content {
+    margin-top: 16px;
+  }
+
+  .rules-description {
+    font-size: 13px;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .tier-rules-list {
+    gap: var(--spacing-sm);
+  }
+
+  .tier-rule-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+
+  .tier-rule-badge {
+    min-width: auto;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 11px;
+    justify-content: center;
+  }
+
+  .tier-rule-info {
+    width: 100%;
+  }
+
+  .tier-rule-range {
+    font-size: 13px;
+    display: block;
+    text-align: left;
+  }
+
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg);
+    flex-shrink: 0;
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-actions {
+    padding: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Mobile Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 20px;
+  }
+
+  .settings-section {
+    padding: var(--spacing-md);
+  }
+
+  .section-title {
+    font-size: 15px;
+  }
+
+  /* Tier Rules Extra Small Screens */
+  .tier-rules-content {
+    margin-top: 12px;
+  }
+
+  .rules-description {
+    font-size: 12px;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .tier-rule-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .tier-rule-badge {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .tier-rule-range {
+    font-size: 12px;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
 

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { mockInterests } from '../data/mockData'
+import { mockInterests, mockMembers } from '../data/mockData'
 import { getClubId } from '../utils/club'
 
 export const getInterests = async (req: Request, res: Response) => {
@@ -84,6 +84,26 @@ export const deleteInterest = async (req: Request, res: Response) => {
     
     if (interestIndex === -1) {
       return res.status(404).json({ message: 'Interest not found' })
+    }
+    
+    const interestToDelete = mockInterests[interestIndex]
+    
+    // Check if any member in this club has this interest
+    const membersWithInterest = mockMembers.filter(member => {
+      if (member.clubId !== clubId) return false
+      return member.interests?.some(interest => interest === interestToDelete.name)
+    })
+    
+    if (membersWithInterest.length > 0) {
+      return res.status(400).json({ 
+        message: `Cannot delete interest "${interestToDelete.name}" because ${membersWithInterest.length} member${membersWithInterest.length > 1 ? 's' : ''} ${membersWithInterest.length > 1 ? 'have' : 'has'} this interest assigned.`,
+        memberCount: membersWithInterest.length,
+        members: membersWithInterest.map(m => ({
+          id: m.id,
+          name: m.name,
+          email: m.email
+        }))
+      })
     }
     
     // Hard delete for mock data

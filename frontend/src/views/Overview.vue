@@ -1,5 +1,17 @@
 <template>
   <div class="dashboard-page">
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
+      </div>
+    </div>
     <h1 class="page-title">Dashboard</h1>
     
     <!-- Tabs -->
@@ -198,7 +210,7 @@
                   <div class="breakdown-stat">
                     <span class="breakdown-stat-icon">📨</span>
                     <div class="breakdown-stat-content">
-                      <span class="breakdown-stat-label">Invited (interest match)</span>
+                      <span class="breakdown-stat-label">Invited</span>
                       <span class="breakdown-stat-value">{{ event.invitedCount }}</span>
                     </div>
                   </div>
@@ -237,6 +249,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { api, type Event, type Member, type InvitationCode } from '../services/api'
 import MemberChart from '../components/MemberChart.vue'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const activeTab = ref('overview')
 
@@ -257,6 +271,9 @@ const members = ref<Member[]>([])
 const codes = ref<InvitationCode[]>([])
 const showProfitModal = ref(false)
 const selectedMonth = ref('')
+
+// Body scroll lock - lock when modal is open
+useBodyScrollLock(showProfitModal)
 const selectedMonthIndex = ref(-1)
 
 const upcomingEventsList = computed(() => {
@@ -350,9 +367,7 @@ const monthEventBreakdown = computed(() => {
         
         const attendeeCount = validAttendees.length
         const noShowCount = validNoShows.length
-        const invitedCount = members.value.filter(member =>
-          member.interests?.some(interest => event.targetInterests?.includes(interest))
-        ).length
+        const invitedCount = event.invitedMembersIds?.length || 0
         const totalProfit = attendeeCount * event.price
         
         monthEvents.push({
@@ -414,25 +429,35 @@ const refreshCodes = async () => {
   totalCodes.value = codes.value.length
 }
 
-onMounted(async () => {
-  members.value = await api.getMembers()
-  totalMembers.value = members.value.length
-  activeMembers.value = members.value.filter(m => m.status === 'active').length
-  
-  // Calculate new members this month
-  const currentMonth = new Date().getMonth()
-  const currentYear = new Date().getFullYear()
-  newMembersThisMonth.value = members.value.filter(m => {
-    const joinDate = new Date(m.joinedDate)
-    return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear
-  }).length
-  
-  await refreshCodes()
-  
-  events.value = await api.getEvents()
-  totalEvents.value = events.value.length
-  upcomingEvents.value = upcomingEventsList.value.length
+const refreshData = async () => {
+  try {
+    members.value = await api.getMembers()
+    totalMembers.value = members.value.length
+    activeMembers.value = members.value.filter(m => m.status === 'active').length
+    
+    // Calculate new members this month
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+    newMembersThisMonth.value = members.value.filter(m => {
+      const joinDate = new Date(m.joinedDate)
+      return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear
+    }).length
+    
+    await refreshCodes()
+    
+    events.value = await api.getEvents()
+    totalEvents.value = events.value.length
+    upcomingEvents.value = upcomingEventsList.value.length
+  } catch (error: any) {
+    // Silent refresh - no toast
+  }
+}
 
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(refreshData)
+
+onMounted(async () => {
+  await refreshData()
   // Listen for invitation code updates from other views
   window.addEventListener('codes-updated', refreshCodes)
 })
@@ -908,8 +933,7 @@ onUnmounted(() => {
   animation: fadeIn var(--transition-base);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 
 .modal-content {
@@ -948,6 +972,7 @@ onUnmounted(() => {
   padding: var(--spacing-2xl);
   border-bottom: 1px solid var(--color-gray-soft);
   background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
+  flex-shrink: 0;
 }
 
 .modal-header-content {
@@ -1006,7 +1031,10 @@ onUnmounted(() => {
 .modal-body {
   padding: var(--spacing-2xl);
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Profit Summary */
@@ -1231,6 +1259,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .page-title {
+    font-size: 28px;
+  }
+
   .modal-content {
     width: 95%;
     max-height: 95vh;
@@ -1252,5 +1284,107 @@ onUnmounted(() => {
     flex-direction: row;
     flex-wrap: wrap;
   }
+
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg);
+    flex-shrink: 0;
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-actions {
+    padding: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-gray-soft);
+    background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 24px;
+  }
+
+  .modal-title {
+    font-size: 22px;
+  }
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

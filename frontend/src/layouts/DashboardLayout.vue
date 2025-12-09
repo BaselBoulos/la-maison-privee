@@ -144,10 +144,58 @@
       </aside>
 
       <!-- Main Content -->
-      <main class="main-content">
+      <main 
+        class="main-content"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
         <router-view />
       </main>
     </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+      <router-link :to="{ name: 'dashboard' }" class="mobile-nav-item" exact-active-class="active">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Dashboard</span>
+      </router-link>
+      <router-link :to="{ name: 'members' }" class="mobile-nav-item" exact-active-class="active">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span>Members</span>
+      </router-link>
+      <router-link :to="{ name: 'events' }" class="mobile-nav-item" exact-active-class="active">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Events</span>
+      </router-link>
+      <router-link :to="{ name: 'invitation-codes' }" class="mobile-nav-item" exact-active-class="active">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <span>Codes</span>
+      </router-link>
+      <router-link :to="{ name: 'settings' }" class="mobile-nav-item" exact-active-class="active">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+        </svg>
+        <span>Settings</span>
+      </router-link>
+    </nav>
   </div>
 </template>
 
@@ -227,7 +275,7 @@ const loadClubs = async () => {
     clubs.value = fetched
     // If current clubId not in fetched, reset to first
     const exists = fetched.some(c => c.id === userClubId.value)
-    if (!exists && fetched.length > 0) {
+    if (!exists && fetched.length > 0 && fetched[0]) {
       const newId = fetched[0].id
       userClubId.value = newId
       localStorage.setItem('clubId', String(newId))
@@ -278,6 +326,36 @@ const closeSidebar = () => {
   sidebarOpen.value = false
 }
 
+// Swipe gesture handlers
+const swipeStartX = ref(0)
+const swipeStartY = ref(0)
+const swipeThreshold = 50 // Minimum distance to trigger swipe
+
+const handleTouchStart = (e: TouchEvent) => {
+  if (e.touches[0]) {
+    swipeStartX.value = e.touches[0].clientX
+    swipeStartY.value = e.touches[0].clientY
+  }
+}
+
+const handleTouchMove = (e: TouchEvent) => {
+  if (!e.touches[0] || sidebarOpen.value) return
+  
+  const deltaX = e.touches[0].clientX - swipeStartX.value
+  const deltaY = Math.abs(e.touches[0].clientY - swipeStartY.value)
+  
+  // Only trigger if horizontal swipe is dominant and from left edge
+  if (swipeStartX.value < 20 && deltaX > 0 && deltaX > deltaY && deltaX > swipeThreshold) {
+    e.preventDefault()
+    sidebarOpen.value = true
+  }
+}
+
+const handleTouchEnd = () => {
+  swipeStartX.value = 0
+  swipeStartY.value = 0
+}
+
 const handleLogout = () => {
   localStorage.removeItem('authToken')
   localStorage.removeItem('userEmail')
@@ -320,10 +398,14 @@ const selectClub = (clubId: number) => {
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--spacing-xl);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .top-bar-left {
@@ -717,6 +799,9 @@ const selectClub = (clubId: number) => {
   flex: 1;
   overflow: hidden;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 70px;
 }
 
 .sidebar {
@@ -840,9 +925,13 @@ const selectClub = (clubId: number) => {
 .main-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--spacing-2xl);
   animation: fadeIn var(--transition-slow);
   margin-left: 280px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -871,7 +960,7 @@ const selectClub = (clubId: number) => {
 .mobile-overlay {
   display: none;
   position: fixed;
-  top: 60px;
+  top: 70px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -881,6 +970,14 @@ const selectClub = (clubId: number) => {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
+  .top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+  }
+
   .mobile-menu-button {
     display: block;
   }
@@ -917,15 +1014,20 @@ const selectClub = (clubId: number) => {
 
   .dashboard-content {
     position: relative;
+    padding-top: 0;
   }
 
   .mobile-overlay {
     display: block;
   }
 
+  .mobile-overlay {
+    top: 70px;
+  }
+
   .sidebar {
     position: fixed;
-    top: 60px;
+    top: 70px;
     left: 0;
     bottom: 0;
     z-index: 999;
@@ -942,6 +1044,7 @@ const selectClub = (clubId: number) => {
     padding: 15px;
     width: 100%;
     margin-left: 0;
+    margin-top: 70px;
   }
 }
 
@@ -949,6 +1052,19 @@ const selectClub = (clubId: number) => {
   .top-bar {
     padding: 0 10px;
     height: 50px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+  }
+
+  .mobile-overlay {
+    top: 50px;
+  }
+
+  .sidebar {
+    top: 50px;
   }
 
   .app-title {
@@ -975,6 +1091,85 @@ const selectClub = (clubId: number) => {
 
   .main-content {
     padding: 10px;
+    margin-top: 50px;
+  }
+}
+
+/* Mobile Bottom Navigation */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.98) 0%, rgba(7, 7, 7, 0.95) 100%);
+  border-top: 1px solid var(--color-gray-soft);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 1000;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  color: #888;
+  text-decoration: none;
+  flex: 1;
+  min-height: 44px;
+  transition: all var(--transition-base);
+  border-radius: var(--radius-md);
+  margin: 0 4px;
+  position: relative;
+}
+
+.mobile-nav-item span {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.mobile-nav-item svg {
+  width: 22px;
+  height: 22px;
+  transition: all var(--transition-base);
+}
+
+.mobile-nav-item:hover {
+  color: var(--color-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.mobile-nav-item.active {
+  color: var(--color-gold);
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.mobile-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: var(--color-gold);
+  border-radius: 0 0 3px 3px;
+  box-shadow: 0 0 8px var(--color-gold-glow);
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: none;
+  }
+
+  .main-content {
+    padding-bottom: 15px;
   }
 }
 </style>

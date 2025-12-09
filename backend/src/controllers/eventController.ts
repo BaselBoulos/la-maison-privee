@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { mockEvents, mockMembers } from '../data/mockData'
+import { mockEvents, mockMembers, mockInterests } from '../data/mockData'
 import { getClubId } from '../utils/club'
 
 export const getEvents = async (req: Request, res: Response) => {
@@ -53,9 +53,34 @@ export const getEvent = async (req: Request, res: Response) => {
 export const createEvent = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
+    
+    // Convert interest IDs to names if needed
+    let targetInterests: string[] = []
+    if (req.body.targetInterests && Array.isArray(req.body.targetInterests)) {
+      targetInterests = req.body.targetInterests.map((interestIdOrName: string) => {
+        // Check if it's an ID (numeric string) or already a name
+        const interest = mockInterests.find(i => i.id === interestIdOrName || i.name === interestIdOrName)
+        return interest ? interest.name : interestIdOrName
+      })
+    }
+    
+    // Find members who match the target interests at creation time
+    const invitedMemberIds: number[] = []
+    if (targetInterests.length > 0) {
+      const matchingMembers = mockMembers.filter(member => {
+        if (member.clubId !== clubId) return false
+        // Check if member has any of the target interests
+        return member.interests?.some(interest => targetInterests.includes(interest))
+      })
+      // Convert string IDs to integers
+      invitedMemberIds.push(...matchingMembers.map(m => parseInt(m.id, 10)))
+    }
+    
     const newEvent = {
       id: String(mockEvents.length + 1),
       ...req.body,
+      targetInterests, // Store as names
+      invitedMembersIds: invitedMemberIds, // Store IDs of members who were invited
       rsvps: {
         yes: [],
         no: [],
@@ -82,7 +107,35 @@ export const updateEvent = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Event not found' })
     }
     
-    mockEvents[eventIndex] = { ...mockEvents[eventIndex], ...req.body }
+    const existingEvent = mockEvents[eventIndex]
+    let updatedData = { ...req.body }
+    
+    // If targetInterests are being updated, convert IDs to names and update invitedMembersIds
+    if (req.body.targetInterests && Array.isArray(req.body.targetInterests)) {
+      const targetInterests = req.body.targetInterests.map((interestIdOrName: string) => {
+        const interest = mockInterests.find(i => i.id === interestIdOrName || i.name === interestIdOrName)
+        return interest ? interest.name : interestIdOrName
+      })
+      
+      // Recalculate invitedMembersIds based on new interests
+      const invitedMemberIds: number[] = []
+      if (targetInterests.length > 0) {
+        const matchingMembers = mockMembers.filter(member => {
+          if (member.clubId !== clubId) return false
+          return member.interests?.some(interest => targetInterests.includes(interest))
+        })
+        // Convert string IDs to integers
+        invitedMemberIds.push(...matchingMembers.map(m => parseInt(m.id, 10)))
+      }
+      
+      updatedData = {
+        ...updatedData,
+        targetInterests,
+        invitedMembersIds: invitedMemberIds
+      }
+    }
+    
+    mockEvents[eventIndex] = { ...existingEvent, ...updatedData }
     
     res.json(mockEvents[eventIndex])
   } catch (error: any) {

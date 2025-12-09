@@ -36,6 +36,7 @@ export interface Event {
   image?: string
   targetInterests: string[]
   targetCities: string[]
+  invitedMembersIds?: number[] // IDs of members who were actually invited to this event
   rsvps: {
     yes: string[]
     no: string[]
@@ -599,6 +600,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&h=600&fit=crop',
     targetInterests: ['Wine Tasting', 'Fine Dining'],
     targetCities: ['New York', 'London'],
+    invitedMembersIds: [1, 2, 7, 8, 10, 11, 12], // John D., Maria S., Robert M., Emma W., Sophie B., Alexandre P., Camille R.
     rsvps: {
       yes: ['1', '7', '8', '10', '2', '3', '4', '5'], // John D., Robert M., Emma W., Sophie B., Maria S., Marid S., David C., Serish K. (Wine Tasting/Fine Dining)
       no: [],
@@ -623,6 +625,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=800&h=600&fit=crop',
     targetInterests: ['Cigar Tasting', 'Whisky / Spirits'],
     targetCities: ['London', 'Dubai'],
+    invitedMembersIds: [5, 9, 15], // Serish K., James L., Omar H.
     rsvps: {
       yes: ['7', '9', '1', '5', '4', '8'], // Robert M., James L., John D., Serish K., David C., Emma W. (Cigar/Whisky interests)
       no: [],
@@ -647,6 +650,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=600&fit=crop',
     targetInterests: ['Live Music', 'Craft Cocktails'],
     targetCities: ['Monaco', 'Paris'],
+    invitedMembersIds: [4, 5, 6, 16], // David C., Serish K., Sarah K., Nour F.
     rsvps: {
       yes: ['3', '4', '5', '6', '2', '8', '10', '1', '7'], // Marid S., David C., Serish K., Sarah K., Maria S., Emma W., Sophie B., John D., Robert M. (Live Music/Craft Cocktails)
       no: [],
@@ -671,6 +675,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop',
     targetInterests: ['Art & Culture', 'Fine Dining'],
     targetCities: ['Paris', 'London'],
+    invitedMembersIds: [2, 3, 10, 11], // Maria S., Marid S., Sophie B., Alexandre P.
     rsvps: {
       yes: ['2', '3', '10', '7', '8', '1', '4', '5'], // Maria S., Marid S., Sophie B., Robert M., Emma W., John D., David C., Serish K. (Art & Culture)
       no: [],
@@ -695,6 +700,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
     targetInterests: ['Luxury Travel', 'Fine Dining'],
     targetCities: ['Monaco', 'Dubai'],
+    invitedMembersIds: [6, 14], // Sarah K., Maha A.
     rsvps: {
       yes: ['6', '8', '2', '10', '7', '1', '3'], // Sarah K., Emma W., Maria S., Sophie B., Robert M., John D., Marid S. (Luxury Travel)
       no: [],
@@ -715,6 +721,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop',
     targetInterests: ['Whisky / Spirits'],
     targetCities: ['Dubai', 'London'],
+    invitedMembersIds: [5, 9, 15, 19], // Serish K., James L., Omar H., Salem M.
     rsvps: {
       yes: ['5', '9', '7', '1', '4', '8', '10', '3'], // Serish K., James L., Robert M., John D., David C., Emma W., Sophie B., Marid S. (Whisky / Spirits)
       no: ['2'], // Maria S.
@@ -735,6 +742,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop',
     targetInterests: ['Fine Dining', 'Wine Tasting'],
     targetCities: ['London', 'Paris'],
+    invitedMembersIds: [1, 2, 7, 8, 10, 11, 12], // John D., Maria S., Robert M., Emma W., Sophie B., Alexandre P., Camille R.
     rsvps: {
       yes: ['1', '7', '2', '8', '10', '3', '4'], // John D., Robert M., Maria S., Emma W., Sophie B., Marid S., David C.
       no: [],
@@ -759,6 +767,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop',
     targetInterests: ['Art & Culture'],
     targetCities: ['Paris', 'London'],
+    invitedMembersIds: [2, 3, 10, 11], // Maria S., Marid S., Sophie B., Alexandre P.
     rsvps: {
       yes: ['2', '3', '10', '7', '1', '8'], // Maria S., Marid S., Sophie B., Robert M., John D., Emma W.
       no: [],
@@ -783,6 +792,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=800&h=600&fit=crop',
     targetInterests: ['Cigar Tasting', 'Whisky / Spirits'],
     targetCities: ['Dubai', 'Monaco'],
+    invitedMembersIds: [5, 9, 15], // Serish K., James L., Omar H.
     rsvps: {
       yes: ['7', '9', '1', '5', '4'], // Robert M., James L., John D., Serish K., David C.
       no: [],
@@ -803,6 +813,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=600&fit=crop',
     targetInterests: ['Luxury Travel'],
     targetCities: ['Monaco', 'Dubai'],
+    invitedMembersIds: [6, 14], // Sarah K., Maha A.
     rsvps: {
       yes: ['6', '8', '10', '2', '7'], // Sarah K., Emma W., Sophie B., Maria S., Robert M.
       no: [],
@@ -823,6 +834,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=600&fit=crop',
     targetInterests: ['Live Music', 'Wine Tasting'],
     targetCities: ['New York', 'London'],
+    invitedMembersIds: [1, 3, 10, 12, 13], // John D., Marid S., Sophie B., Camille R., Etienne L.
     rsvps: {
       yes: ['1', '7', '8', '10', '2', '3', '4'], // John D., Robert M., Emma W., Sophie B., Maria S., Marid S., David C.
       no: [],
@@ -843,6 +855,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1597432846200-a5921441427d?w=800&h=600&fit=crop',
     targetInterests: ['Whisky / Spirits'],
     targetCities: ['London', 'Dubai'],
+    invitedMembersIds: [5, 9, 15], // Serish K., James L., Omar H.
     rsvps: {
       yes: ['5', '9', '7', '1', '4', '8'], // Serish K., James L., Robert M., John D., David C., Emma W.
       no: [],
@@ -864,6 +877,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1544145945-f90425340c7b?w=800&h=600&fit=crop',
     targetInterests: ['Fine Dining', 'Wine Tasting'],
     targetCities: ['Paris', 'London'],
+    invitedMembersIds: [1, 2, 7, 10, 11, 12], // John D., Maria S., Robert M., Sophie B., Alexandre P., Camille R.
     rsvps: {
       yes: ['1', '2', '7', '10', '11', '12'],
       no: [],
@@ -884,6 +898,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=600&fit=crop',
     targetInterests: ['Art & Culture', 'Live Music'],
     targetCities: ['Paris', 'London'],
+    invitedMembersIds: [2, 3, 11, 13], // Maria S., Marid S., Alexandre P., Etienne L.
     rsvps: {
       yes: ['11', '12', '13', '2', '3', '7'],
       no: [],
@@ -905,6 +920,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&h=600&fit=crop',
     targetInterests: ['Fine Dining', 'Luxury Travel'],
     targetCities: ['Dubai', 'Abu Dhabi'],
+    invitedMembersIds: [14], // Maha A.
     rsvps: {
       yes: ['4', '5', '14', '15', '16'],
       no: [],
@@ -925,6 +941,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800&h=600&fit=crop',
     targetInterests: ['Luxury Travel', 'Craft Cocktails'],
     targetCities: ['Dubai', 'Abu Dhabi'],
+    invitedMembersIds: [4, 5, 6], // David C., Serish K., Sarah K.
     rsvps: {
       yes: ['4', '5', '14', '15'],
       no: [],
@@ -946,6 +963,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?w=800&h=600&fit=crop',
     targetInterests: ['Fine Dining'],
     targetCities: ['Riyadh'],
+    invitedMembersIds: [17], // Faisal R.
     rsvps: {
       yes: ['17', '18'],
       no: [],
@@ -966,6 +984,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1470229538611-16ba8c7ffbd7?w=800&h=600&fit=crop',
     targetInterests: ['Live Music', 'Art & Culture'],
     targetCities: ['Riyadh'],
+    invitedMembersIds: [18], // Laila K.
     rsvps: {
       yes: ['17', '18', '19'],
       no: [],
@@ -987,6 +1006,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?w=800&h=600&fit=crop',
     targetInterests: ['Fine Dining', 'Art & Culture'],
     targetCities: ['Paris', 'London'],
+    invitedMembersIds: [1, 2, 3, 7, 10, 11], // John D., Maria S., Marid S., Robert M., Sophie B., Alexandre P.
     rsvps: { yes: ['1', '2', '7', '10'], no: [], maybe: ['3', '8'] },
     waitlist: [],
     attendance: undefined,
@@ -1004,6 +1024,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=800&h=600&fit=crop',
     targetInterests: ['Craft Cocktails', 'Live Music'],
     targetCities: ['Dubai', 'Abu Dhabi'],
+    invitedMembersIds: [4, 5, 16], // David C., Serish K., Nour F.
     rsvps: { yes: ['4', '5', '14', '15', '16'], no: [], maybe: ['9'] },
     waitlist: [],
     attendance: undefined,
@@ -1021,6 +1042,7 @@ export const mockEvents: Event[] = [
     image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=600&fit=crop',
     targetInterests: ['Luxury Travel', 'Art & Culture', 'Live Music'],
     targetCities: ['Riyadh'],
+    invitedMembersIds: [17, 18], // Faisal R., Laila K.
     rsvps: { yes: ['17', '18'], no: [], maybe: ['19'] },
     waitlist: [],
     attendance: undefined,

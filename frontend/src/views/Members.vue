@@ -3,9 +3,39 @@
     <div class="members-container">
       <!-- Member Management -->
       <div class="left-section">
-        <h2 class="section-title">Member Management</h2>
+        <div class="section-header-mobile">
+          <h2 class="section-title">Member Management</h2>
+          <div class="filter-buttons">
+            <button 
+              class="filter-toggle-button" 
+              @click="toggleFilters"
+              :class="{ 'active': filtersVisible }"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span>{{ filtersVisible ? 'Hide' : 'Show' }} Filters</span>
+            </button>
+            <button 
+              class="mobile-filter-button" 
+              @click="showFilterDrawer = true" 
+              v-if="showFilterDrawer === false"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span>Filters</span>
+            </button>
+          </div>
+        </div>
         
-        <div class="filters-section">
+        <div 
+          class="filters-section" 
+          :class="{ 
+            'mobile-hidden': showFilterDrawer === false,
+            'filters-hidden': !filtersVisible && showFilterDrawer !== true
+          }"
+        >
           <div class="filter-row">
             <div class="filter-group">
               <label>Filter by Interest</label>
@@ -79,7 +109,6 @@
               </button>
               <div v-if="selectedMembers.length > 0" class="bulk-actions-toolbar">
                 <span class="selected-count">{{ selectedMembers.length }} selected</span>
-                <button class="btn btn-sm btn-secondary" @click="showBulkStatusModal = true">Update Status</button>
                 <button class="btn btn-sm btn-secondary" @click="showBulkInterestsModal = true">Assign Interests</button>
                 <button class="btn btn-sm btn-primary" @click="showBulkEmailModal = true">Send Email</button>
                 <button class="btn btn-sm btn-danger" @click="showBulkDeleteModal = true">Delete</button>
@@ -105,19 +134,19 @@
                       {{ sortDirection === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th class="sortable" @click="sortMembers('email')">
+                  <th class="sortable mobile-hide" @click="sortMembers('email')">
                     Email
                     <span class="sort-icon" v-if="sortColumn === 'email'">
                       {{ sortDirection === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th class="sortable" @click="sortMembers('city')">
+                  <th class="sortable mobile-hide" @click="sortMembers('city')">
                     City
                     <span class="sort-icon" v-if="sortColumn === 'city'">
                       {{ sortDirection === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th class="sortable" @click="sortMembers('interests')">
+                  <th class="sortable mobile-hide" @click="sortMembers('interests')">
                     Interests
                     <span class="sort-icon" v-if="sortColumn === 'interests'">
                       {{ sortDirection === 'asc' ? '↑' : '↓' }}
@@ -129,7 +158,7 @@
                       {{ sortDirection === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th>Invitation</th>
+                  <th class="mobile-hide">Invitation</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,8 +166,12 @@
                   v-for="(member, index) in paginatedMembers" 
                   :key="member.id" 
                   class="member-row"
-                  :class="{ selected: selectedMembers.includes(member.id) }"
-                  :style="{ animationDelay: `${index * 0.05}s` }"
+                  :class="{ 
+                    selected: selectedMembers.includes(member.id)
+                  }"
+                  :style="{ 
+                    animationDelay: `${index * 0.05}s`
+                  }"
                 >
                   <td class="checkbox-column" @click.stop>
                     <input 
@@ -161,9 +194,9 @@
                       </div>
                     </div>
                   </td>
-                  <td @click="$router.push({ name: 'member-detail', params: { id: member.id } })">{{ member.email }}</td>
-                  <td @click="$router.push({ name: 'member-detail', params: { id: member.id } })">{{ member.city || '-' }}</td>
-                  <td @click="$router.push({ name: 'member-detail', params: { id: member.id } })">
+                  <td class="mobile-hide" @click="$router.push({ name: 'member-detail', params: { id: member.id } })">{{ member.email }}</td>
+                  <td class="mobile-hide" @click="$router.push({ name: 'member-detail', params: { id: member.id } })">{{ member.city || '-' }}</td>
+                  <td class="mobile-hide" @click="$router.push({ name: 'member-detail', params: { id: member.id } })">
                     <div class="interests-cell">
                       <span v-for="interest in member.interests.slice(0, 2)" :key="interest" class="interest-tag-small">
                         {{ interest }}
@@ -178,7 +211,7 @@
                       {{ member.status }}
                     </span>
                   </td>
-                  <td @click="$router.push({ name: 'member-detail', params: { id: member.id } })">
+                  <td class="mobile-hide" @click="$router.push({ name: 'member-detail', params: { id: member.id } })">
                     <span class="invited-badge" v-if="member.invitationCode">
                       {{ member.invitationCode }}
                     </span>
@@ -212,45 +245,64 @@
       </div>
     </div>
 
-    <!-- Bulk Status Update Modal -->
-    <div v-if="showBulkStatusModal" class="modal-overlay" @click.self="showBulkStatusModal = false">
-      <div class="modal-content">
-        <h3>Update Status for {{ selectedMembers.length }} Members</h3>
-        <div class="modal-form">
-          <label>New Status</label>
-          <select v-model="bulkStatusValue" class="form-input">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="invited">Invited</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showBulkStatusModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="handleBulkStatusUpdate">Update</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Bulk Interests Modal -->
-    <div v-if="showBulkInterestsModal" class="modal-overlay" @click.self="showBulkInterestsModal = false">
-      <div class="modal-content">
-        <h3>Assign Interests to {{ selectedMembers.length }} Members</h3>
-        <div class="modal-form">
-          <label>Select Interests</label>
-          <div class="interests-checkboxes">
-            <label v-for="interest in interests" :key="interest.id" class="checkbox-label">
-              <input 
-                type="checkbox" 
-                :value="interest.name" 
-                v-model="bulkInterestsValue"
-              />
-              {{ interest.name }}
-            </label>
+    <div v-if="showBulkInterestsModal" class="modal-overlay" @click.self="closeBulkInterestsModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Assign Interests to {{ selectedMembers.length }} {{ selectedMembers.length === 1 ? 'Member' : 'Members' }}</h3>
+          <button class="modal-close" @click="closeBulkInterestsModal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-form">
+            <div class="form-group full-width">
+              <label>Select Interests</label>
+              <p class="helper-text">Click on interests to select or deselect them</p>
+              <div class="interests-chips-container">
+                <div 
+                  v-for="interest in interests" 
+                  :key="interest.id"
+                  :class="['interest-chip-selectable', { selected: bulkInterestsValue.includes(interest.name) }]"
+                  @click="toggleBulkInterest(interest.name)"
+                >
+                  <svg 
+                    v-if="bulkInterestsValue.includes(interest.name)"
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    stroke-width="2"
+                    class="chip-check-icon"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span class="chip-text">{{ interest.name }}</span>
+                </div>
+                <div v-if="interests.length === 0" class="no-interests-message">
+                  <p>No interests available. Add interests in Settings.</p>
+                </div>
+              </div>
+              <div v-if="bulkInterestsValue.length > 0" class="selected-interests-summary">
+                <span class="summary-text">{{ bulkInterestsValue.length }} {{ bulkInterestsValue.length === 1 ? 'interest' : 'interests' }} selected</span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showBulkInterestsModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="handleBulkAssignInterests">Assign</button>
+          <button class="btn btn-secondary" @click="closeBulkInterestsModal">Cancel</button>
+          <button 
+            class="btn btn-primary" 
+            @click="handleBulkAssignInterests"
+            :disabled="bulkInterestsValue.length === 0"
+            :class="{ 'btn-disabled': bulkInterestsValue.length === 0 }"
+          >
+            Assign{{ bulkInterestsValue.length > 0 ? ` (${bulkInterestsValue.length})` : '' }}
+          </button>
         </div>
       </div>
     </div>
@@ -258,12 +310,22 @@
     <!-- Bulk Email Modal -->
     <div v-if="showBulkEmailModal" class="modal-overlay" @click.self="showBulkEmailModal = false">
       <div class="modal-content modal-large">
-        <h3>Send Email to {{ selectedMembers.length }} Members</h3>
-        <div class="modal-form">
-          <label>Subject</label>
-          <input v-model="emailSubject" type="text" class="form-input" placeholder="Email subject" />
-          <label>Message</label>
-          <textarea v-model="emailBody" class="form-textarea" rows="8" placeholder="Email message"></textarea>
+        <div class="modal-header">
+          <h3>Send Email to {{ selectedMembers.length }} {{ selectedMembers.length === 1 ? 'Member' : 'Members' }}</h3>
+          <button class="modal-close" @click="showBulkEmailModal = false">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-form">
+            <label>Subject</label>
+            <input v-model="emailSubject" type="text" class="form-input" placeholder="Email subject" />
+            <label>Message</label>
+            <textarea v-model="emailBody" class="form-textarea" rows="8" placeholder="Email message"></textarea>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showBulkEmailModal = false">Cancel</button>
@@ -275,12 +337,110 @@
     <!-- Bulk Delete Confirmation Modal -->
     <div v-if="showBulkDeleteModal" class="modal-overlay" @click.self="showBulkDeleteModal = false">
       <div class="modal-content">
-        <h3>Delete {{ selectedMembers.length }} Members?</h3>
-        <p class="warning-text">This action cannot be undone. Are you sure you want to delete these members?</p>
+        <div class="modal-header">
+          <h3>Delete {{ selectedMembers.length }} {{ selectedMembers.length === 1 ? 'Member' : 'Members' }}?</h3>
+          <button class="modal-close" @click="showBulkDeleteModal = false">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="delete-warning-content">
+            <div class="warning-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <p class="warning-text">This action cannot be undone. Are you sure you want to delete {{ selectedMembers.length === 1 ? 'this member' : 'these members' }}?</p>
+          </div>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showBulkDeleteModal = false">Cancel</button>
           <button class="btn btn-danger" @click="handleBulkDelete">Delete</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Mobile Filter Drawer -->
+    <div v-if="showFilterDrawer === true" class="filter-drawer-overlay" @click.self="showFilterDrawer = false">
+      <div class="filter-drawer">
+        <div class="filter-drawer-header">
+          <h3>Filters</h3>
+          <button class="filter-drawer-close" @click="showFilterDrawer = false">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="filter-drawer-content">
+          <div class="filter-group">
+            <label>Filter by Interest</label>
+            <select v-model="filters.interest" class="filter-input">
+              <option value="">All Interests</option>
+              <option v-for="interest in interests" :key="interest.id" :value="interest.name">
+                {{ interest.name }}
+              </option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Search by Name</label>
+            <input 
+              v-model="filters.name" 
+              type="text" 
+              class="filter-input"
+              placeholder="Enter member name"
+            />
+          </div>
+          <div class="filter-group">
+            <label>Search by Email</label>
+            <input 
+              v-model="filters.email" 
+              type="text" 
+              class="filter-input"
+              placeholder="Enter email address"
+            />
+          </div>
+          <div class="filter-group">
+            <label>Search by City</label>
+            <input 
+              v-model="filters.city" 
+              type="text" 
+              class="filter-input"
+              placeholder="Enter city name"
+            />
+          </div>
+          <div class="filter-group">
+            <label>Filter by Status</label>
+            <select v-model="filters.status" class="filter-input">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="invited">Invited</option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-drawer-actions">
+          <button class="btn btn-secondary" @click="resetFilters">Clear Filters</button>
+          <button class="btn btn-primary" @click="applyFiltersAndClose">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
       </div>
     </div>
 
@@ -416,6 +576,8 @@ import { ref, computed, onMounted } from 'vue'
 import { api, type Member, type Interest } from '../services/api'
 import MemberTierBadge from '../components/MemberTierBadge.vue'
 import { useToast } from '../composables/useToast'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const toast = useToast()
 
@@ -423,6 +585,10 @@ const members = ref<Member[]>([])
 const interests = ref<Interest[]>([])
 const filteredMembers = ref<Member[]>([])
 const selectedMembers = ref<string[]>([])
+
+// Mobile features
+const showFilterDrawer = ref<boolean | null>(null) // null = auto (desktop visible, mobile drawer)
+const filtersVisible = ref(false) // Desktop: filters hidden by default
 
 // Add member modal
 const showAddMemberModal = ref(false)
@@ -443,13 +609,20 @@ const errors = ref<{
 }>({})
 
 // Bulk operation modals
-const showBulkStatusModal = ref(false)
 const showBulkInterestsModal = ref(false)
 const showBulkEmailModal = ref(false)
 const showBulkDeleteModal = ref(false)
 
+// Body scroll lock - lock when any modal is open
+const isAnyModalOpen = computed(() => 
+  showAddMemberModal.value || 
+  showBulkInterestsModal.value || 
+  showBulkEmailModal.value || 
+  showBulkDeleteModal.value
+)
+useBodyScrollLock(isAnyModalOpen)
+
 // Bulk operation values
-const bulkStatusValue = ref<'active' | 'inactive' | 'invited'>('active')
 const bulkInterestsValue = ref<string[]>([])
 const emailSubject = ref('')
 const emailBody = ref('')
@@ -571,6 +744,11 @@ const applyFilters = async () => {
   filteredMembers.value = await api.getMembers(filterParams)
 }
 
+const applyFiltersAndClose = async () => {
+  await applyFilters()
+  showFilterDrawer.value = false
+}
+
 const resetFilters = () => {
   filters.value = {
     interest: '',
@@ -611,16 +789,18 @@ const allSelected = computed(() => {
 })
 
 // Bulk operations
-const handleBulkStatusUpdate = async () => {
-  try {
-    await api.bulkUpdateMemberStatus(selectedMembers.value, bulkStatusValue.value)
-    toast.showToast(`Status updated for ${selectedMembers.value.length} members`, 'success')
-    showBulkStatusModal.value = false
-    selectedMembers.value = []
-    await applyFilters()
-  } catch (error: any) {
-    toast.showToast(error.message || 'Failed to update status', 'error')
+const toggleBulkInterest = (interestName: string) => {
+  const index = bulkInterestsValue.value.indexOf(interestName)
+  if (index > -1) {
+    bulkInterestsValue.value.splice(index, 1)
+  } else {
+    bulkInterestsValue.value.push(interestName)
   }
+}
+
+const closeBulkInterestsModal = () => {
+  showBulkInterestsModal.value = false
+  bulkInterestsValue.value = []
 }
 
 const handleBulkAssignInterests = async () => {
@@ -630,7 +810,7 @@ const handleBulkAssignInterests = async () => {
   }
   try {
     await api.bulkAssignInterests(selectedMembers.value, bulkInterestsValue.value)
-    toast.showToast(`Interests assigned to ${selectedMembers.value.length} members`, 'success')
+    toast.showToast(`Interests assigned to ${selectedMembers.value.length} ${selectedMembers.value.length === 1 ? 'member' : 'members'}`, 'success')
     showBulkInterestsModal.value = false
     bulkInterestsValue.value = []
     selectedMembers.value = []
@@ -760,20 +940,46 @@ const closeAddMemberModal = () => {
   }
 }
 
+const refreshData = async () => {
+  try {
+    members.value = await api.getMembers()
+    filteredMembers.value = [...members.value]
+    interests.value = await api.getInterests()
+  } catch (error: any) {
+    toast.showToast('Failed to refresh data', 'error')
+  }
+}
+
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(refreshData)
+
+const toggleFilters = () => {
+  filtersVisible.value = !filtersVisible.value
+}
+
 onMounted(async () => {
-  members.value = await api.getMembers()
-  filteredMembers.value = [...members.value]
-  interests.value = await api.getInterests()
+  // Set initial filter drawer state based on screen size
+  const updateFilterDrawerState = () => {
+    showFilterDrawer.value = window.innerWidth <= 768 ? false : null
+  }
+  updateFilterDrawerState()
+  window.addEventListener('resize', updateFilterDrawerState)
+  
+  await refreshData()
 })
 </script>
 
 <style scoped>
 .members-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .members-container {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-layout {
@@ -784,12 +990,11 @@ onMounted(async () => {
 
 .section-title {
   font-family: var(--font-heading);
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: var(--color-gold);
-  margin: 0 0 var(--spacing-xl) 0;
+  font-size: 32px;
   font-weight: 600;
-  text-transform: uppercase;
+  color: var(--color-gold);
+  margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .left-section {
@@ -804,6 +1009,12 @@ onMounted(async () => {
   border-radius: var(--radius-xl);
   padding: var(--spacing-2xl);
   box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+  overflow: hidden;
+}
+
+.filters-section.filters-hidden {
+  display: none;
 }
 
 .filter-row {
@@ -887,14 +1098,28 @@ onMounted(async () => {
   border: none;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
   box-shadow: var(--shadow-lg), var(--shadow-gold);
   transform: translateY(-2px);
 }
 
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.btn-primary:disabled,
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary:disabled:hover,
+.btn-disabled:hover {
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  box-shadow: var(--shadow-md);
+  transform: none !important;
 }
 
 .btn-large {
@@ -913,13 +1138,19 @@ onMounted(async () => {
 }
 
 .table-container {
-  overflow-x: auto;
+  overflow-x: visible;
+  width: 100%;
 }
 
 .members-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: auto;
+}
+
+.mobile-hide {
+  display: table-cell;
 }
 
 .members-table thead {
@@ -1260,12 +1491,15 @@ onMounted(async () => {
   background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
   border: 1px solid var(--color-gray-soft);
   border-radius: var(--radius-xl);
-  padding: var(--spacing-2xl);
+  padding: 0;
   max-width: 500px;
   width: 100%;
   box-shadow: var(--shadow-xl);
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
 }
 
 .modal-content.modal-large {
@@ -1276,9 +1510,10 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-md);
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  padding-bottom: var(--spacing-lg);
   border-bottom: 1px solid var(--color-gray-soft);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
@@ -1287,6 +1522,8 @@ onMounted(async () => {
   font-weight: 600;
   color: var(--color-gold);
   margin: 0;
+  padding: 0;
+  line-height: 1.4;
 }
 
 .modal-close {
@@ -1308,7 +1545,12 @@ onMounted(async () => {
 }
 
 .modal-body {
-  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .form-row {
@@ -1349,6 +1591,13 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+.helper-text {
+  color: #aaa;
+  font-size: 12px;
+  margin: 4px 0 12px 0;
+  line-height: 1.4;
 }
 
 .form-input,
@@ -1504,14 +1753,648 @@ onMounted(async () => {
   display: flex;
   gap: var(--spacing-md);
   justify-content: flex-end;
-  margin-top: var(--spacing-xl);
+  padding: var(--spacing-xl);
+  padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-gray-soft);
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+}
+
+.delete-warning-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--spacing-lg) 0;
+}
+
+.warning-icon {
+  color: #f87171;
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warning-icon svg {
+  filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.3));
 }
 
 .warning-text {
   color: #f87171;
+  font-size: 15px;
+  margin: 0;
+  line-height: 1.6;
+  font-weight: 500;
+  max-width: 400px;
+}
+
+/* Mobile Filter Drawer */
+.filter-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn var(--transition-base);
+}
+
+.filter-drawer {
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-top: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp var(--transition-base);
+}
+
+.filter-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 1px solid var(--color-gray-soft);
+}
+
+.filter-drawer-header h3 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-gold);
+  margin: 0;
+}
+
+.filter-drawer-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.filter-drawer-close:hover {
+  background: var(--color-gray);
+  color: #ffffff;
+}
+
+.filter-drawer-content {
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-drawer-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  border-top: 1px solid var(--color-gray-soft);
+}
+
+.filter-drawer-actions .btn {
+  flex: 1;
+  min-height: 44px;
+}
+
+.filter-toggle-button {
+  display: flex;
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  color: #000000;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
   font-size: 14px;
-  margin: var(--spacing-md) 0;
-  line-height: 1.5;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 44px;
+}
+
+.filter-toggle-button:hover {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+  transform: translateY(-2px);
+}
+
+.filter-toggle-button.active {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+}
+
+.filter-toggle-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-filter-button {
+  display: none;
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  color: #000000;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 44px;
+}
+
+.mobile-filter-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.section-header-mobile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.filter-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 24px;
+  }
+
+  .left-section {
+    gap: var(--spacing-lg);
+  }
+
+  .interests-section {
+    padding: var(--spacing-lg);
+  }
+
+  .section-header-mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .filter-toggle-button {
+    display: none;
+  }
+
+  .mobile-filter-button {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filters-section.mobile-hidden {
+    display: none;
+  }
+
+  .filters-section {
+    display: block;
+    padding: var(--spacing-lg);
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .filter-actions {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .filter-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .header-actions .btn {
+    min-height: 44px;
+    flex: 1;
+    min-width: calc(50% - var(--spacing-xs));
+  }
+
+  .bulk-actions-toolbar {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+  }
+
+  .bulk-actions-toolbar .btn {
+    min-height: 44px;
+    flex: 1;
+    min-width: calc(50% - var(--spacing-xs));
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .selected-count {
+    width: 100%;
+    margin-bottom: var(--spacing-xs);
+    margin-right: 0;
+  }
+
+  /* Mobile Tables - Hide non-essential columns */
+  .table-container {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .members-table {
+    width: 100%;
+    table-layout: auto;
+    min-width: 600px;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: var(--spacing-md) var(--spacing-sm);
+    font-size: 13px;
+  }
+
+  .members-table th {
+    font-size: 10px;
+    padding: var(--spacing-sm);
+  }
+
+  .members-table th:first-child,
+  .members-table td:first-child {
+    width: 50px;
+    padding: var(--spacing-sm);
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 1;
+  }
+
+  .members-table th:nth-child(2),
+  .members-table td:nth-child(2) {
+    min-width: 200px;
+    max-width: 300px;
+  }
+
+  .members-table th:last-child,
+  .members-table td:last-child {
+    min-width: 80px;
+  }
+
+  .member-cell {
+    gap: var(--spacing-sm);
+  }
+
+  .member-name {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .member-avatar-small {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .member-name-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .status-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    animation: slideUp var(--transition-base);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-content.modal-large {
+    max-width: 100%;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-gray-soft);
+    margin-bottom: 0;
+  }
+
+  .modal-header h3 {
+    padding-right: var(--spacing-md);
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--spacing-md);
+  }
+
+  .modal-actions {
+    padding: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-gray-soft);
+    background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+    position: relative;
+    z-index: 10;
+    display: flex;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Mobile Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  .interests-chips-container {
+    min-height: 100px;
+    max-height: 200px;
+  }
+
+  .interest-chip-selectable {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Mobile Pagination */
+  .pagination {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: var(--spacing-md);
+  }
+
+  .pagination-btn {
+    min-height: 44px;
+    min-width: 80px;
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  .pagination-page {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 13px;
+  }
+
+  .pagination-pages {
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+
+  .btn-sm {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .checkbox-column input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Mobile Filter Drawer */
+  .filter-drawer-header {
+    padding: var(--spacing-lg);
+  }
+
+  .filter-drawer-content {
+    padding: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
+  .filter-drawer-actions {
+    padding: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .filter-drawer-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 20px;
+  }
+
+  .interests-section {
+    padding: var(--spacing-md);
+  }
+
+  .section-header-mobile {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .section-header {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .members-table {
+    min-width: 500px;
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: var(--spacing-sm);
+    font-size: 12px;
+  }
+
+  .member-name {
+    font-size: 13px;
+  }
+
+  .member-avatar-small {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .header-actions .btn {
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .bulk-actions-toolbar {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .bulk-actions-toolbar .btn {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .pagination {
+    gap: 4px;
+  }
+
+  .pagination-btn {
+    min-width: 70px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .pagination-page {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .modal-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+    padding-right: var(--spacing-sm);
+  }
+
+  .filter-drawer-header h3 {
+    font-size: 18px;
+  }
+
+  .delete-warning-content {
+    padding: var(--spacing-md) 0;
+  }
+
+  .warning-icon {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .warning-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .warning-text {
+    font-size: 14px;
+    padding: 0 var(--spacing-sm);
+  }
 }
 
 </style>

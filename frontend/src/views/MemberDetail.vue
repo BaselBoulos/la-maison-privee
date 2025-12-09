@@ -1,5 +1,17 @@
 <template>
   <div class="member-detail-page" v-if="member">
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
+      </div>
+    </div>
     <div class="page-header">
       <button class="back-button" @click="$router.push({ name: 'members' })">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -264,6 +276,8 @@ import { api, type Member, type Event, type Interest } from '../services/api'
 import MemberTierBadge from '../components/MemberTierBadge.vue'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
 import { useToast } from '../composables/useToast'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const route = useRoute()
 const router = useRouter()
@@ -275,6 +289,13 @@ const showEditModal = ref(false)
 const showDeleteModal = ref(false)
 const isDeleting = ref(false)
 const isUpdating = ref(false)
+
+// Body scroll lock - lock when any modal is open
+const isAnyModalOpen = computed(() => 
+  showEditModal.value || 
+  showDeleteModal.value
+)
+useBodyScrollLock(isAnyModalOpen)
 const editForm = ref({
   name: '',
   email: '',
@@ -439,17 +460,51 @@ const confirmDeleteMember = async () => {
   }
 }
 
+const loadMember = async () => {
+  try {
+    const memberId = route.params.id as string
+    member.value = await api.getMember(memberId)
+    if (!member.value) {
+      toast.showToast('Member not found', 'error')
+      router.push({ name: 'members' })
+      return
+    }
+    
+    // Populate edit form
+    editForm.value = {
+      name: member.value.name,
+      email: member.value.email,
+      phone: member.value.phone || '',
+      city: member.value.city || '',
+      status: member.value.status,
+      interests: [...member.value.interests],
+      invitationCode: member.value.invitationCode || ''
+    }
+    
+    events.value = await api.getEvents()
+    availableInterests.value = await api.getInterests()
+  } catch (error: any) {
+    // Silent refresh - no toast
+  }
+}
+
+const refreshData = async () => {
+  await loadMember()
+}
+
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(refreshData)
+
 onMounted(async () => {
-  const memberId = route.params.id as string
-  member.value = await api.getMember(memberId)
-  events.value = await api.getEvents()
-  availableInterests.value = await api.getInterests()
+  await loadMember()
 })
 </script>
 
 <style scoped>
 .member-detail-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-header {
@@ -792,7 +847,7 @@ onMounted(async () => {
   background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
   border: 1px solid var(--color-gray-soft);
   border-radius: var(--radius-xl);
-  padding: var(--spacing-2xl);
+  padding: 0;
   max-width: 500px;
   width: 100%;
   box-shadow: 
@@ -801,6 +856,10 @@ onMounted(async () => {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: slideDown var(--transition-slow);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
 @keyframes slideDown {
@@ -871,7 +930,10 @@ onMounted(async () => {
   display: flex;
   gap: var(--spacing-md);
   justify-content: center;
-  margin-top: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-gray-soft);
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
 }
 
 .modal-content.modal-large {
@@ -882,8 +944,8 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-md);
+  padding: var(--spacing-2xl);
+  flex-shrink: 0;
   border-bottom: 1px solid var(--color-gray-soft);
 }
 
@@ -914,7 +976,12 @@ onMounted(async () => {
 }
 
 .modal-body {
-  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-form {
@@ -1130,6 +1197,120 @@ select:disabled:focus {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .delete-modal {
+    max-width: 100%;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg);
+    flex-shrink: 0;
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-actions {
+    padding: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Mobile Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content h3 {
+    font-size: 18px;
+  }
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
 

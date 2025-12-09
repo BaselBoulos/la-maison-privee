@@ -12,6 +12,7 @@ export interface IEvent extends Document {
   targetInterests: mongoose.Types.ObjectId[]
   targetCities: string[]
   targetStatus?: string[]
+  invitedMembersIds?: number[] // IDs of members who were actually invited to this event
   rsvps: {
     yes: mongoose.Types.ObjectId[]
     no: mongoose.Types.ObjectId[]
@@ -64,6 +65,9 @@ const EventSchema = new Schema<IEvent>(
     targetStatus: [{
       type: String,
       enum: ['active', 'inactive', 'invited']
+    }],
+    invitedMembersIds: [{
+      type: Number
     }],
     rsvps: {
       yes: [{

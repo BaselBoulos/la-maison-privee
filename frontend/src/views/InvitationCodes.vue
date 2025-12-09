@@ -1,5 +1,17 @@
 <template>
   <div class="invitation-codes-page">
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
+      </div>
+    </div>
     <div class="page-header">
       <h1 class="page-title">Invitation Codes</h1>
       <div class="header-actions">
@@ -52,19 +64,19 @@
                 {{ sortDirection === 'asc' ? '↑' : '↓' }}
               </span>
             </th>
-            <th class="sortable" @click="sortCodes('assignedMember')">
+            <th class="sortable mobile-hide" @click="sortCodes('assignedMember')">
               Assigned Member
               <span class="sort-icon" v-if="sortColumn === 'assignedMember'">
                 {{ sortDirection === 'asc' ? '↑' : '↓' }}
               </span>
             </th>
-            <th class="sortable" @click="sortCodes('createdAt')">
+            <th class="sortable mobile-hide" @click="sortCodes('createdAt')">
               Created At
               <span class="sort-icon" v-if="sortColumn === 'createdAt'">
                 {{ sortDirection === 'asc' ? '↑' : '↓' }}
               </span>
             </th>
-            <th class="sortable" @click="sortCodes('usedAt')">
+            <th class="sortable mobile-hide" @click="sortCodes('usedAt')">
               Used At
               <span class="sort-icon" v-if="sortColumn === 'usedAt'">
                 {{ sortDirection === 'asc' ? '↑' : '↓' }}
@@ -83,9 +95,9 @@
                 {{ code.status }}
               </span>
             </td>
-            <td>{{ code.assignedMemberName || '-' }}</td>
-            <td>{{ formatDate(code.createdAt) }}</td>
-            <td>{{ code.usedAt ? formatDate(code.usedAt) : '-' }}</td>
+            <td class="mobile-hide">{{ code.assignedMemberName || '-' }}</td>
+            <td class="mobile-hide">{{ formatDate(code.createdAt) }}</td>
+            <td class="mobile-hide">{{ code.usedAt ? formatDate(code.usedAt) : '-' }}</td>
             <td>
               <button 
                 v-if="code.status === 'unused'"
@@ -125,6 +137,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { api, type InvitationCode } from '../services/api'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
 
 const codes = ref<InvitationCode[]>([])
 const codeCount = ref(5)
@@ -259,14 +272,21 @@ const revokeCode = async (id: string) => {
 }
 
 const loadCodes = async () => {
-  const allCodes = await api.getInvitationCodes()
-  codes.value = [...allCodes]
-  // Set default sort to newest first by createdAt if no sort is active
-  if (!sortColumn.value) {
-    sortColumn.value = 'createdAt'
-    sortDirection.value = 'desc'
+  try {
+    const allCodes = await api.getInvitationCodes()
+    codes.value = [...allCodes]
+    // Set default sort to newest first by createdAt if no sort is active
+    if (!sortColumn.value) {
+      sortColumn.value = 'createdAt'
+      sortDirection.value = 'desc'
+    }
+  } catch (error: any) {
+    // Silent refresh - no toast
   }
 }
+
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(loadCodes)
 
 onMounted(async () => {
   await loadCodes()
@@ -276,6 +296,8 @@ onMounted(async () => {
 <style scoped>
 .invitation-codes-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-header {
@@ -560,6 +582,124 @@ onMounted(async () => {
   background: #d4af37;
   border-color: #d4af37;
   color: #000000;
+}
+
+.mobile-hide {
+  display: table-cell;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 28px;
+  }
+
+  .codes-table-container {
+    overflow-x: visible;
+  }
+
+  .codes-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+
+  .codes-table th,
+  .codes-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .codes-table th:first-child,
+  .codes-table td:first-child {
+    width: 40%;
+  }
+
+  .codes-table th:nth-child(2),
+  .codes-table td:nth-child(2) {
+    width: 30%;
+  }
+
+  .codes-table th:last-child,
+  .codes-table td:last-child {
+    width: 30%;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .code-count-input {
+    width: 100%;
+  }
+
+  .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+  }
+
+  .pagination-btn,
+  .pagination-page {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 24px;
+  }
+}
 }
 </style>
 

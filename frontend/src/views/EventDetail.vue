@@ -84,7 +84,7 @@
             </div>
             <div class="event-invited-row">
               <div class="invited-summary">
-                <span class="section-label">Invited (interest match)</span>
+                <span class="section-label">Invited</span>
                 <span class="invited-count">{{ invitedCount }} members</span>
               </div>
               <div class="invited-avatars" v-if="displayedInvited.length">
@@ -173,7 +173,7 @@
             <div class="rsvp-actions">
               <select 
                 :value="getMemberRSVP(memberId)" 
-                @change="updateMemberRSVP(memberId, $event.target.value)"
+                @change="updateMemberRSVP(memberId, ($event.target as HTMLSelectElement).value)"
                 :disabled="isPastEvent"
                 class="rsvp-select"
                 :class="{ 'disabled': isPastEvent }"
@@ -238,7 +238,7 @@
               <div class="member-avatar">{{ getMemberInitials(memberId) }}</div>
               <div class="member-details">
                 <div class="member-name">{{ getMemberName(memberId) }}</div>
-                <div class="member-email">{{ getMemberEmail(memberId) }}</div>
+                <div class="member-email mobile-hide">{{ getMemberEmail(memberId) }}</div>
               </div>
             </div>
             <div class="attendance-actions">
@@ -247,14 +247,16 @@
                 @click="markAttendance(memberId, 'attended')"
                 :disabled="attendanceTab === 'attended'"
               >
-                Mark Attended
+                <span class="btn-text">Mark Attended</span>
+                <span class="btn-icon">✓</span>
               </button>
               <button 
                 class="btn btn-sm btn-warning" 
                 @click="markAttendance(memberId, 'noShow')"
                 :disabled="attendanceTab === 'noShow'"
               >
-                Mark No Show
+                <span class="btn-text">Mark No Show</span>
+                <span class="btn-icon">✕</span>
               </button>
             </div>
           </div>
@@ -504,6 +506,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, type Event, type Member } from '../services/api'
 import { useToast } from '../composables/useToast'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const route = useRoute()
 const router = useRouter()
@@ -516,6 +520,14 @@ const showEditModal = ref(false)
 const showDeleteModal = ref(false)
 const showBulkAttendanceModal = ref(false)
 const isUpdating = ref(false)
+
+// Body scroll lock - lock when any modal is open
+const isAnyModalOpen = computed(() => 
+  showEditModal.value || 
+  showDeleteModal.value || 
+  showBulkAttendanceModal.value
+)
+useBodyScrollLock(isAnyModalOpen)
 const bulkAttendanceMembers = ref<string[]>([])
 const bulkAttendanceStatus = ref<'attended' | 'noShow'>('attended')
 const memberSearchQuery = ref('')
@@ -531,13 +543,14 @@ const editForm = ref({
 })
 
 const invitedMembers = computed(() => {
-  if (!event.value || !event.value.targetInterests?.length) return []
+  if (!event.value || !event.value.invitedMembersIds?.length) return []
+  // Get actual member objects from the invitedMembersIds
   return members.value.filter(member =>
-    member.interests?.some(interest => event.value?.targetInterests.includes(interest))
+    event.value?.invitedMembersIds?.includes(parseInt(member.id, 10))
   )
 })
 
-const invitedCount = computed(() => invitedMembers.value.length)
+const invitedCount = computed(() => event.value?.invitedMembersIds?.length || 0)
 const displayedInvited = computed(() => invitedMembers.value.slice(0, 6))
 
 const isPastEvent = computed(() => {
@@ -807,6 +820,19 @@ const loadEvent = async () => {
   }
 }
 
+const refreshData = async () => {
+  try {
+    await loadEvent()
+  } catch (error: any) {
+    // Silent refresh - no toast
+  }
+}
+
+// Pull to refresh
+const pullToRefresh = usePullToRefresh(refreshData)
+const isRefreshing = pullToRefresh.isRefreshing
+const pullToRefreshDistance = pullToRefresh.pullToRefreshDistance
+
 onMounted(async () => {
   await loadEvent()
 })
@@ -815,6 +841,8 @@ onMounted(async () => {
 <style scoped>
 .event-detail-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-header {
@@ -1160,6 +1188,11 @@ onMounted(async () => {
 .attendance-stats {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mobile-hide {
+  display: block;
 }
 
 .attendance-tabs {
@@ -1167,6 +1200,14 @@ onMounted(async () => {
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-xl);
   border-bottom: 2px solid var(--color-gray-soft);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.attendance-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .attendance-list {
@@ -1185,6 +1226,7 @@ onMounted(async () => {
   border: 1px solid var(--color-gray-soft);
   border-radius: var(--radius-lg);
   transition: all var(--transition-base);
+  gap: var(--spacing-md);
 }
 
 .attendance-item:hover {
@@ -1195,6 +1237,11 @@ onMounted(async () => {
 .attendance-actions {
   display: flex;
   gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  display: none;
 }
 
 .btn-sm {
@@ -1906,6 +1953,7 @@ onMounted(async () => {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(212, 175, 55, 0.1) inset,
@@ -1913,6 +1961,7 @@ onMounted(async () => {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: slideUp var(--transition-slow);
+  position: relative;
 }
 
 @keyframes slideUp {
@@ -1930,15 +1979,20 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 30px;
-  border-bottom: 1px solid #2a2a2a;
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-soft);
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
-  font-size: 24px;
+  font-family: var(--font-heading);
+  font-size: 20px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-gold);
   margin: 0;
+  padding: 0;
+  line-height: 1.4;
 }
 
 .modal-close {
@@ -1946,23 +2000,26 @@ onMounted(async () => {
   border: none;
   color: #888;
   cursor: pointer;
-  padding: 4px;
+  padding: var(--spacing-xs);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
 }
 
 .modal-close:hover {
-  background: #2a2a2a;
+  background: var(--color-gray);
   color: #ffffff;
 }
 
 .modal-body {
   padding: 30px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-footer {
@@ -1971,6 +2028,8 @@ onMounted(async () => {
   gap: 12px;
   padding: 24px 30px;
   border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
 }
 
 /* Event Form Styles */
@@ -2109,7 +2168,15 @@ onMounted(async () => {
     margin: 0;
   }
   
-  .modal-header,
+  .modal-header {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+  }
+
+  .modal-header h2 {
+    padding-right: var(--spacing-md);
+  }
+
   .modal-body,
   .modal-footer,
   .confirm-modal-header,
@@ -2131,6 +2198,342 @@ onMounted(async () => {
   .event-hero {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 768px) {
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .modal-content,
+  .confirm-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header,
+  .confirm-modal-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-gray-soft);
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+    padding-right: var(--spacing-sm);
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--spacing-md);
+  }
+
+  .modal-footer,
+  .confirm-modal-footer {
+    padding: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-gray-soft);
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.98) 100%);
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .modal-actions .btn,
+  .modal-footer .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Mobile Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+
+  /* Attendance Section Mobile Optimizations */
+  .attendance-section {
+    padding: var(--spacing-lg);
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .attendance-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .attendance-stats .stat-badge {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .attendance-tabs {
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-xs);
+  }
+
+  .attendance-tabs .tab {
+    min-width: auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .attendance-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .member-info {
+    width: 100%;
+  }
+
+  .attendance-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .attendance-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-text {
+    display: inline;
+  }
+
+  .btn-icon {
+    display: inline;
+    margin-left: var(--spacing-xs);
+    font-weight: bold;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+
+  .bulk-attendance-actions {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+  }
+
+  .bulk-attendance-actions .btn {
+    width: 100%;
+  }
+
+  /* RSVP Section Mobile Optimizations */
+  .rsvp-section {
+    padding: var(--spacing-lg);
+  }
+
+  .rsvp-stats {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .rsvp-stats .stat-badge {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .rsvp-tabs {
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-xs);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .rsvp-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rsvp-tabs .tab {
+    min-width: auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .rsvp-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .rsvp-actions {
+    width: 100%;
+  }
+
+  .rsvp-select {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Event Hero Mobile */
+  .event-hero {
+    gap: var(--spacing-lg);
+  }
+
+  .event-info-card {
+    padding: var(--spacing-lg);
+  }
+
+  .event-meta {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .meta-item {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .confirm-title {
+    font-size: 20px;
+  }
+
+  .attendance-section,
+  .rsvp-section {
+    padding: var(--spacing-md);
+  }
+
+  .attendance-stats .stat-badge,
+  .rsvp-stats .stat-badge {
+    padding: var(--spacing-sm) var(--spacing-xs);
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .attendance-tabs .tab,
+  .rsvp-tabs .tab {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 12px;
+  }
+
+  .attendance-item,
+  .rsvp-item {
+    padding: var(--spacing-md);
+  }
+
+  .member-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .member-name {
+    font-size: 14px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .header-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
 

@@ -27,7 +27,9 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }))
-    throw new Error(error.message || `HTTP error! status: ${response.status}`)
+    const errorObj = new Error(error.message || `HTTP error! status: ${response.status}`) as any
+    errorObj.response = { data: error, status: response.status }
+    throw errorObj
   }
 
   return response.json()
@@ -68,6 +70,7 @@ export interface Event {
   image?: string
   targetInterests: string[]
   targetCities: string[]
+  invitedMembersIds?: number[] // IDs of members who were actually invited to this event
   rsvps: {
     yes: string[]
     no: string[]

@@ -1,35 +1,85 @@
 <template>
   <div class="events-page">
-    <div class="page-header">
-      <h1 class="page-title">Events</h1>
-      <button class="btn btn-primary" @click="showCreateModal = true">
-        Create Event
-      </button>
+    <!-- Pull to Refresh Indicator -->
+    <div v-if="pullToRefreshDistance > 0" class="pull-to-refresh" :style="{ height: `${Math.min(pullToRefreshDistance, 60)}px` }">
+      <div class="pull-to-refresh-content">
+        <svg v-if="!isRefreshing" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <div v-else class="spinner"></div>
+        <span>{{ isRefreshing ? 'Refreshing...' : 'Pull to refresh' }}</span>
+      </div>
+    </div>
+    <!-- Filter Section -->
+    <div class="section-header-mobile">
+      <h2 class="section-title">Events</h2>
+      <div class="header-actions">
+        <button class="btn btn-primary" @click="showCreateModal = true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Create Event
+        </button>
+        <div class="filter-buttons">
+          <button 
+            class="filter-toggle-button" 
+            @click="toggleFilters"
+            :class="{ 'active': filtersVisible }"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span>{{ filtersVisible ? 'Hide' : 'Show' }} Filters</span>
+          </button>
+          <button 
+            class="mobile-filter-button" 
+            @click="showFilterDrawer = true" 
+            v-if="showFilterDrawer === false"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span>Filters</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Filter Section -->
-    <div class="events-filter">
-      <div class="filter-group">
-        <label for="month-filter" class="filter-label">Month</label>
-        <select id="month-filter" v-model="selectedMonth" class="filter-select">
-          <option value="">All Months</option>
-          <option v-for="(month, index) in months" :key="index" :value="index + 1">
-            {{ month }}
-          </option>
-        </select>
+    <div 
+      class="filters-section" 
+      :class="{ 
+        'mobile-hidden': showFilterDrawer === false,
+        'filters-hidden': !filtersVisible && showFilterDrawer !== true
+      }"
+    >
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Filter by Month</label>
+          <select v-model="selectedMonth" class="filter-input">
+            <option value="">All Months</option>
+            <option v-for="(month, index) in months" :key="index" :value="index + 1">
+              {{ month }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Filter by Year</label>
+          <select v-model="selectedYear" class="filter-input">
+            <option value="">All Years</option>
+            <option v-for="year in availableYears" :key="year" :value="year">
+              {{ year }}
+            </option>
+          </select>
+        </div>
       </div>
-      <div class="filter-group">
-        <label for="year-filter" class="filter-label">Year</label>
-        <select id="year-filter" v-model="selectedYear" class="filter-select">
-          <option value="">All Years</option>
-          <option v-for="year in availableYears" :key="year" :value="year">
-            {{ year }}
-          </option>
-        </select>
+      
+      <div class="filter-actions">
+        <button class="btn btn-secondary" @click="clearFilters">Clear Filters</button>
+        <button class="btn btn-primary" @click="applyFilters">Apply Filters</button>
       </div>
-      <button v-if="selectedMonth || selectedYear" class="btn btn-secondary btn-small" @click="clearFilters">
-        Clear Filters
-      </button>
     </div>
     
     <div class="events-list">
@@ -166,6 +216,45 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile Filter Drawer -->
+    <div v-if="showFilterDrawer === true" class="filter-drawer-overlay" @click.self="showFilterDrawer = false">
+      <div class="filter-drawer">
+        <div class="filter-drawer-header">
+          <h3>Filters</h3>
+          <button class="filter-drawer-close" @click="showFilterDrawer = false">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="filter-drawer-content">
+          <div class="filter-group">
+            <label>Filter by Month</label>
+            <select v-model="selectedMonth" class="filter-input">
+              <option value="">All Months</option>
+              <option v-for="(month, index) in months" :key="index" :value="index + 1">
+                {{ month }}
+              </option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Filter by Year</label>
+            <select v-model="selectedYear" class="filter-input">
+              <option value="">All Years</option>
+              <option v-for="year in availableYears" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-drawer-actions">
+          <button class="btn btn-secondary" @click="clearFilters">Clear Filters</button>
+          <button class="btn btn-primary" @click="applyFiltersAndClose">Apply Filters</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -173,6 +262,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { api, type Event, type Interest } from '../services/api'
 import { useToast } from '../composables/useToast'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const toast = useToast()
 
@@ -180,6 +271,14 @@ const events = ref<Event[]>([])
 const interests = ref<Interest[]>([])
 const showCreateModal = ref(false)
 const isSubmitting = ref(false)
+
+// Body scroll lock - lock when modal is open
+useBodyScrollLock(showCreateModal)
+
+// Mobile features
+const showFilterDrawer = ref<boolean | null>(null) // null = auto (desktop visible, mobile drawer)
+const filtersVisible = ref(false) // Desktop: filters hidden by default
+
 const selectedMonth = ref<number | ''>('')
 const selectedYear = ref<number | ''>('')
 
@@ -227,6 +326,20 @@ const filteredEvents = computed(() => {
 const clearFilters = () => {
   selectedMonth.value = ''
   selectedYear.value = ''
+}
+
+const applyFilters = () => {
+  // Filters are already applied via computed property
+  // This function is for consistency with Members page
+}
+
+const applyFiltersAndClose = () => {
+  applyFilters()
+  showFilterDrawer.value = false
+}
+
+const toggleFilters = () => {
+  filtersVisible.value = !filtersVisible.value
 }
 
 const eventForm = ref({
@@ -338,91 +451,133 @@ const getAttendanceCounts = (event: Event) => {
   return { attended, noShow }
 }
 
+const refreshData = async () => {
+  try {
+    const allEvents = await api.getEvents()
+    // Sort events by date: most recent first
+    events.value = allEvents.sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return dateB - dateA // Most recent first
+    })
+    interests.value = await api.getInterests()
+  } catch (error: any) {
+    toast.showToast('Failed to refresh data', 'error')
+  }
+}
+
+// Pull to refresh
+const { isRefreshing, pullToRefreshDistance } = usePullToRefresh(refreshData)
+
 onMounted(async () => {
-  const allEvents = await api.getEvents()
-  // Sort events by date: most recent first
-  events.value = allEvents.sort((a, b) => {
-    const dateA = new Date(a.date).getTime()
-    const dateB = new Date(b.date).getTime()
-    return dateB - dateA // Most recent first
-  })
-  interests.value = await api.getInterests()
+  // Set initial filter drawer state based on screen size
+  const updateFilterDrawerState = () => {
+    showFilterDrawer.value = window.innerWidth <= 768 ? false : null
+  }
+  updateFilterDrawerState()
+  window.addEventListener('resize', updateFilterDrawerState)
+  
+  await refreshData()
 })
 </script>
 
 <style scoped>
 .events-page {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
-.page-header {
+.section-header-mobile {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-xl);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
 }
 
-.page-title {
+.section-title {
+  font-family: var(--font-heading);
   font-size: 32px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-gold);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
-.events-filter {
+.header-actions {
   display: flex;
-  align-items: flex-end;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-2xl);
-  padding: var(--spacing-xl);
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.header-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.filter-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.filters-section {
   background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
   border: 1px solid var(--color-gray-soft);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+  overflow: hidden;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.filters-section.filters-hidden {
+  display: none;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
-  flex: 1;
-  max-width: 200px;
+  gap: 8px;
 }
 
-.filter-label {
+.filter-group label {
   font-size: 12px;
   color: #888;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
-.filter-select {
-  padding: var(--spacing-md);
-  background: var(--color-gray);
-  border: 1px solid var(--color-gray-soft);
-  border-radius: var(--radius-md);
+.filter-input {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 10px 12px;
   color: #ffffff;
   font-size: 14px;
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: all var(--transition-base);
 }
 
-.filter-select:hover {
-  border-color: var(--color-gold-subtle);
-  background: var(--color-gray-soft);
-}
-
-.filter-select:focus {
+.filter-input:focus {
   outline: none;
-  border-color: var(--color-gold);
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+  border-color: #d4af37;
 }
 
-.filter-select option {
-  background: var(--color-dark-soft);
-  color: #ffffff;
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .btn-small {
@@ -458,17 +613,30 @@ onMounted(async () => {
   font-weight: 600;
   box-shadow: var(--shadow-md);
   border: none;
-  letter-spacing: 0.5px;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
   box-shadow: var(--shadow-lg), var(--shadow-gold);
   transform: translateY(-2px);
 }
 
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.btn-primary:disabled,
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary:disabled:hover,
+.btn-disabled:hover {
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  box-shadow: var(--shadow-md);
+  transform: none !important;
 }
 
 .events-list {
@@ -532,6 +700,7 @@ onMounted(async () => {
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
+  max-width: 100%;
 }
 
 .event-image {
@@ -630,8 +799,7 @@ onMounted(async () => {
   z-index: 1000;
   padding: var(--spacing-xl);
   animation: fadeIn var(--transition-base);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 
 @keyframes fadeIn {
@@ -660,6 +828,7 @@ onMounted(async () => {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: slideUp var(--transition-slow);
+  position: relative;
 }
 
 @keyframes slideUp {
@@ -711,7 +880,10 @@ onMounted(async () => {
 .modal-body {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-footer {
@@ -719,7 +891,10 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 12px;
   padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
 }
 
 .btn-secondary {
@@ -732,10 +907,6 @@ onMounted(async () => {
   background: #2a2a2a;
 }
 
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 .event-form {
   display: flex;
@@ -788,6 +959,22 @@ onMounted(async () => {
   resize: vertical;
 }
 
+.form-input[type="date"],
+.form-input[type="time"] {
+  color-scheme: dark;
+}
+
+.form-input[type="date"]::-webkit-calendar-picker-indicator,
+.form-input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(74%) sepia(38%) saturate(640%) hue-rotate(10deg) brightness(1.05);
+  opacity: 0.9;
+}
+
+.form-input[type="date"]:focus::-webkit-calendar-picker-indicator,
+.form-input[type="time"]:focus::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
 .interests-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -823,6 +1010,387 @@ onMounted(async () => {
 .interest-name {
   font-size: 13px;
   color: #ffffff;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 24px;
+  }
+
+  .section-header-mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .header-actions .btn {
+    min-height: 44px;
+    flex: 1;
+    min-width: calc(50% - var(--spacing-xs));
+  }
+
+  /* Mobile Modals - Full Screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-gray-soft);
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--spacing-md);
+  }
+
+  .modal-footer {
+    padding: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-gray-soft);
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.98) 100%);
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .modal-actions .btn,
+  .modal-footer .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Mobile Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  /* Touch Targets */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+
+  .event-card {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .event-image-container {
+    width: 100%;
+    max-width: 100%;
+    height: 200px;
+  }
+
+  .section-header-mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .filter-toggle-button {
+    display: none;
+  }
+
+  .mobile-filter-button {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filters-section.mobile-hidden {
+    display: none;
+  }
+
+  .filters-section {
+    display: block;
+    padding: var(--spacing-lg);
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .filter-actions {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .filter-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 20px;
+  }
+
+  .section-header-mobile {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .header-actions .btn {
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+
+  .event-card {
+    padding: var(--spacing-md);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .event-image-container {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-bottom: 1px solid var(--color-gray-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: height var(--transition-base);
+  overflow: hidden;
+}
+
+.pull-to-refresh-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gold);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gold-subtle);
+  border-top-color: var(--color-gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Filter Toggle Button */
+.filter-toggle-button {
+  display: flex;
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  color: #000000;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 44px;
+}
+
+.filter-toggle-button:hover {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+  transform: translateY(-2px);
+}
+
+.filter-toggle-button.active {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+}
+
+.filter-toggle-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-filter-button {
+  display: none;
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+  color: #000000;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 44px;
+}
+
+.mobile-filter-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Filter Drawer */
+.filter-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn var(--transition-base);
+}
+
+.filter-drawer {
+  background: linear-gradient(135deg, var(--color-dark-soft) 0%, var(--color-black-soft) 100%);
+  border-top: 1px solid var(--color-gray-soft);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp var(--transition-base);
+}
+
+.filter-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 1px solid var(--color-gray-soft);
+}
+
+.filter-drawer-header h3 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-gold);
+  margin: 0;
+}
+
+.filter-drawer-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.filter-drawer-close:hover {
+  background: var(--color-gray);
+  color: #ffffff;
+}
+
+.filter-drawer-content {
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-drawer-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  border-top: 1px solid var(--color-gray-soft);
+}
+
+.filter-drawer-actions .btn {
+  flex: 1;
+  min-height: 44px;
+}
+
+@media (max-width: 768px) {
+  .filter-drawer-header {
+    padding: var(--spacing-lg);
+  }
+
+  .filter-drawer-content {
+    padding: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
+  .filter-drawer-actions {
+    padding: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .filter-drawer-actions .btn {
+    width: 100%;
+  }
 }
 </style>
 

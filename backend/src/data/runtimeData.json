@@ -1,30 +1,39 @@
 {
-  "invitationCodes": [],
-  "clubs": [
+  "invitationCodes": [
     {
-      "id": 4,
-      "name": "rosemary",
-      "slug": "rosemary",
-      "theme": {
-        "primary": "#d4af37",
-        "accent": "#8b2635",
-        "logo": ""
-      },
-      "locale": "en-IL",
-      "currency": "ILS"
-    }
-  ],
-  "admins": [
+      "id": "23",
+      "code": "CLUB-ZYNJR",
+      "status": "unused",
+      "createdAt": "2025-12-09",
+      "clubId": 1
+    },
     {
-      "id": 4,
-      "email": "rosemary@gmail.com",
-      "password": "123",
-      "name": "ghassan",
-      "role": "club",
-      "clubId": 4,
-      "allowedClubIds": [
-        4
-      ]
+      "id": "24",
+      "code": "CLUB-4F3YQ",
+      "status": "unused",
+      "createdAt": "2025-12-09",
+      "clubId": 1
+    },
+    {
+      "id": "25",
+      "code": "CLUB-DBVTV",
+      "status": "unused",
+      "createdAt": "2025-12-09",
+      "clubId": 1
+    },
+    {
+      "id": "26",
+      "code": "CLUB-ZUZWG",
+      "status": "unused",
+      "createdAt": "2025-12-09",
+      "clubId": 1
+    },
+    {
+      "id": "27",
+      "code": "CLUB-FBXVT",
+      "status": "unused",
+      "createdAt": "2025-12-09",
+      "clubId": 1
     }
   ]
 }
