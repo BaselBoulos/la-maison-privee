@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
-import { mockMembers } from '../data/mockData'
+import { mockMembers, mockClubs } from '../data/mockData'
+import { buildEmailContent, sendEmail } from '../services/emailService'
 import { getClubId } from '../utils/club'
 
 // Store email history (in a real app, this would be in a database)
@@ -12,6 +13,7 @@ const emailHistory: Array<{
   sentAt: string
   status: 'sent' | 'failed'
   clubId: number
+  error?: string
 }> = []
 
 // Send email to single member
@@ -30,30 +32,40 @@ export const sendEmailToMember = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Member not found' })
     }
     
-    // In a real app, you would send an actual email here using nodemailer or similar
-    // For now, we'll just log it and store in history
-    console.log(`[EMAIL] To: ${member.email}`)
-    console.log(`[EMAIL] Subject: ${subject}`)
-    console.log(`[EMAIL] Body: ${body}`)
-    
-    const emailRecord = {
+    const club = mockClubs.find(c => c.id === clubId)
+    const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
+    const baseRecord = {
       id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       memberId: member.id,
       memberEmail: member.email,
       subject,
       body,
       sentAt: new Date().toISOString(),
-      status: 'sent' as const,
       clubId
     }
-    
-    emailHistory.push(emailRecord)
-    
-    res.json({
-      success: true,
-      message: 'Email sent successfully',
-      emailRecord
-    })
+
+    try {
+      console.log('[EMAIL][SINGLE] Sending', { to: member.email, subject })
+      await sendEmail({
+        to: member.email,
+        subject,
+        html,
+        text
+      })
+
+      const emailRecord = { ...baseRecord, status: 'sent' as const }
+      emailHistory.push(emailRecord)
+
+      res.json({
+        success: true,
+        message: 'Email sent successfully',
+        emailRecord
+      })
+    } catch (error: any) {
+      const emailRecord = { ...baseRecord, status: 'failed' as const, error: error?.message }
+      emailHistory.push(emailRecord)
+      res.status(500).json({ message: 'Failed to send email', error: error?.message })
+    }
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -75,20 +87,26 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
       notFound: [] as string[]
     }
     
-    memberIds.forEach((memberId: string) => {
+    const club = mockClubs.find(c => c.id === clubId)
+    const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
+
+    for (const memberId of memberIds) {
       const member = mockMembers.find(m => m.id === memberId && m.clubId === clubId)
       
       if (!member) {
         results.notFound.push(memberId)
-        return
+        continue
       }
       
       try {
-        // In a real app, you would send an actual email here
-        console.log(`[BULK EMAIL] To: ${member.email}`)
-        console.log(`[BULK EMAIL] Subject: ${subject}`)
-        console.log(`[BULK EMAIL] Body: ${body}`)
-        
+        console.log('[EMAIL][BULK] Sending', { to: member.email, subject, memberId })
+        await sendEmail({
+          to: member.email,
+          subject,
+          html,
+          text
+        })
+
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           memberId: member.id,
@@ -103,9 +121,23 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
         emailHistory.push(emailRecord)
         results.sent.push(memberId)
       } catch (error) {
+        console.error('[EMAIL][BULK] Failed', { to: member.email, subject, memberId, error: (error as Error)?.message })
+        const emailRecord = {
+          id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          memberId: member.id,
+          memberEmail: member.email,
+          subject,
+          body,
+          sentAt: new Date().toISOString(),
+          status: 'failed' as const,
+          clubId,
+          error: (error as Error)?.message
+        }
+
+        emailHistory.push(emailRecord)
         results.failed.push(memberId)
       }
-    })
+    }
     
     res.json({
       success: true,
@@ -163,12 +195,19 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
       failed: [] as string[]
     }
     
-    filteredMembers.forEach(member => {
+    const club = mockClubs.find(c => c.id === clubId)
+    const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
+
+    for (const member of filteredMembers) {
       try {
-        console.log(`[FILTERED EMAIL] To: ${member.email}`)
-        console.log(`[FILTERED EMAIL] Subject: ${subject}`)
-        console.log(`[FILTERED EMAIL] Body: ${body}`)
-        
+        console.log('[EMAIL][FILTERED] Sending', { to: member.email, subject, memberId: member.id })
+        await sendEmail({
+          to: member.email,
+          subject,
+          html,
+          text
+        })
+
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           memberId: member.id,
@@ -176,16 +215,30 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
           subject,
           body,
           sentAt: new Date().toISOString(),
-      status: 'sent' as const,
-      clubId
+          status: 'sent' as const,
+          clubId
         }
         
         emailHistory.push(emailRecord)
         results.sent.push(member.id)
       } catch (error) {
+        console.error('[EMAIL][FILTERED] Failed', { to: member.email, subject, memberId: member.id, error: (error as Error)?.message })
+        const emailRecord = {
+          id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          memberId: member.id,
+          memberEmail: member.email,
+          subject,
+          body,
+          sentAt: new Date().toISOString(),
+          status: 'failed' as const,
+          clubId,
+          error: (error as Error)?.message
+        }
+
+        emailHistory.push(emailRecord)
         results.failed.push(member.id)
       }
-    })
+    }
     
     res.json({
       success: true,

@@ -91,4 +91,7 @@ The server will run on `http://localhost:3000` by default.
 - `MONGODB_URI` - MongoDB connection string
 - `JWT_SECRET` - Secret key for JWT tokens
 - `FRONTEND_URL` - Frontend URL for CORS
+- `RESEND_API_KEY` - API key for Resend email service
+- `RESEND_FROM_EMAIL` - Verified sender address for Resend
+Email branding now uses a built-in layout with the club name pulled from the request’s `X-Club-Id`. No extra color variables needed.
 

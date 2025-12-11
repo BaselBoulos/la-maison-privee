@@ -1,6 +1,6 @@
+import './config/env'
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import { connectDatabase } from './config/database'
 import memberRoutes from './routes/members'
 import eventRoutes from './routes/events'
@@ -10,8 +10,6 @@ import authRoutes from './routes/auth'
 import bulkOperationsRoutes from './routes/bulkOperations'
 import clubRoutes from './routes/clubs'
 import communicationRoutes from './routes/communication'
-
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3000

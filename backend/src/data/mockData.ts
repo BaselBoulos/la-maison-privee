@@ -286,6 +286,45 @@ export const mockMembers: Member[] = [
     profilePhoto: 'https://i.pravatar.cc/150?img=59',
     clubId: 1
   },
+  {
+    id: '21',
+    name: 'Basel Boulos',
+    email: 'baselboulos@gmail.com',
+    phone: '+1-555-0101',
+    city: 'Tel Aviv',
+    interests: ['Fine Dining', 'Luxury Travel'],
+    status: 'active',
+    joinedDate: '2025-03-05',
+    invitationCode: 'LMP-NEW21',
+    profilePhoto: 'https://i.pravatar.cc/150?img=21',
+    clubId: 1
+  },
+  {
+    id: '22',
+    name: 'Basel Boulos',
+    email: 'baselboulos@gmail.com',
+    phone: '+966-55-123-0001',
+    city: 'Riyadh',
+    interests: ['Fine Dining', 'Luxury Travel'],
+    status: 'active',
+    joinedDate: '2025-03-06',
+    invitationCode: 'RUH-NEW22',
+    profilePhoto: 'https://i.pravatar.cc/150?img=22',
+    clubId: 3
+  },
+  {
+    id: '23',
+    name: 'Basel Agency',
+    email: 'baselwebagency@gmail.com',
+    phone: '+1-555-0202',
+    city: 'Riyadh',
+    interests: ['Art & Culture', 'Live Music'],
+    status: 'active',
+    joinedDate: '2025-03-06',
+    invitationCode: 'RUH-NEW23',
+    profilePhoto: 'https://i.pravatar.cc/150?img=23',
+    clubId: 3
+  },
   // New Gulf Privée members
   {
     id: '14',
