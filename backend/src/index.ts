@@ -60,6 +60,9 @@ app.use(express.urlencoded({ extended: true }))
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
+// Serve static files from frontend build
+app.use(express.static(path.join(__dirname, '../public')))
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'La Maison Privée API is running' })
@@ -85,9 +88,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   })
 })
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' })
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ message: 'API route not found' })
+})
+
+// Serve frontend app for all non-API routes (SPA fallback)
+app.get('*', (req, res) => {
+  // Serve index.html for all other routes (SPA routing)
+  res.sendFile(path.join(__dirname, '../public/index.html'))
 })
 
 // Start server
