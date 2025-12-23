@@ -31,7 +31,7 @@ onMounted(() => {
 })
 
 watch(() => props.data, () => {
-  if (chartInstance && chartInstance.data.datasets[0]) {
+  if (chartInstance?.data.datasets?.[0]) {
     chartInstance.data.datasets[0].data = props.data
     chartInstance.update()
   }
@@ -123,7 +123,8 @@ const createChart = () => {
       scales: {
         x: {
           grid: {
-            color: 'rgba(42, 42, 42, 0.5)'
+            color: 'rgba(42, 42, 42, 0.5)',
+            display: true
           },
           border: {
             display: false
@@ -137,7 +138,8 @@ const createChart = () => {
         },
         y: {
           grid: {
-            color: 'rgba(42, 42, 42, 0.5)'
+            color: 'rgba(42, 42, 42, 0.5)',
+            display: true
           },
           border: {
             display: false

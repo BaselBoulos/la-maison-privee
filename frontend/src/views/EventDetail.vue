@@ -173,7 +173,7 @@
             <div class="rsvp-actions">
               <select 
                 :value="getMemberRSVP(memberId)" 
-                @change="updateMemberRSVP(memberId, ($event.target as HTMLSelectElement).value)"
+                @change="(e) => { const target = e.target as HTMLSelectElement; if (target) updateMemberRSVP(memberId, target.value) }"
                 :disabled="isPastEvent"
                 class="rsvp-select"
                 :class="{ 'disabled': isPastEvent }"
