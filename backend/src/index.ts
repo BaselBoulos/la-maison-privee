@@ -35,13 +35,25 @@ app.use(cors({
       return callback(null, true)
     }
     
-    // Production: Allow specific frontend URL and mobile apps
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      // Add additional allowed origins from environment variable (comma-separated)
-      ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : [])
-    ].filter(Boolean)
+    // Production: Build list of allowed origins
+    const allowedOrigins: string[] = []
     
+    // Always allow the backend's own URL (for same-origin requests when frontend is served from backend)
+    if (process.env.RENDER_EXTERNAL_URL) {
+      allowedOrigins.push(process.env.RENDER_EXTERNAL_URL)
+    }
+    
+    // Add FRONTEND_URL if set (for separate frontend deployments)
+    if (process.env.FRONTEND_URL) {
+      allowedOrigins.push(process.env.FRONTEND_URL)
+    }
+    
+    // Add additional allowed origins from environment variable (comma-separated)
+    if (process.env.ALLOWED_ORIGINS) {
+      allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()))
+    }
+    
+    // Check if origin matches any allowed origin
     if (allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
