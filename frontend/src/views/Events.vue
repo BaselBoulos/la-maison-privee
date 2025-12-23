@@ -411,8 +411,8 @@ const toggleInterest = (interest: string) => {
   }
 }
 
-const handleEventImageSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
+const handleEventImageSelect = (e: globalThis.Event) => {
+  const target = e.target as HTMLInputElement
   const file = target.files?.[0]
   if (file) {
     // Validate file type

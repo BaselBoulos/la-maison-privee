@@ -828,10 +828,8 @@ const refreshData = async () => {
   }
 }
 
-// Pull to refresh
-const pullToRefresh = usePullToRefresh(refreshData)
-const isRefreshing = pullToRefresh.isRefreshing
-const pullToRefreshDistance = pullToRefresh.pullToRefreshDistance
+// Pull to refresh (intentionally unused - sets up event listeners)
+void usePullToRefresh(refreshData)
 
 onMounted(async () => {
   await loadEvent()

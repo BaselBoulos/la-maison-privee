@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, type Member, type Event } from '../services/api'
+import { api } from '../services/api'
 import SkeletonLoader from './SkeletonLoader.vue'
 
 const props = defineProps<{

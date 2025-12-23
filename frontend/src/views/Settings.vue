@@ -501,12 +501,6 @@ const updateInterest = async (interest: Interest) => {
   })
 }
 
-const deleteInterest = async (id: string) => {
-  if (confirm('Are you sure you want to delete this interest?')) {
-    await api.updateInterest(id, { enabled: false })
-    allInterests.value = await api.getAllInterests()
-  }
-}
 
 const toggleInterestsExpanded = () => {
   interestsExpanded.value = !interestsExpanded.value

@@ -401,8 +401,8 @@ const openEditModal = () => {
   showEditModal.value = true
 }
 
-const handleEditPhotoSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
+const handleEditPhotoSelect = (e: globalThis.Event) => {
+  const target = e.target as HTMLInputElement
   const file = target.files?.[0]
   if (file) {
     // Validate file type
