@@ -124,6 +124,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { api } from '../services/api'
 
 const router = useRouter()
 const isRegistering = ref(false)
@@ -177,26 +178,7 @@ const handleLogin = async () => {
   isLoading.value = true
   
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-    
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Invalid credentials' }))
-      throw new Error(errorData.message || 'Invalid credentials')
-    }
-
-    const data = await response.json()
-    
+    const data = await api.login(email.value, password.value)
     persistAuth(data)
     router.push({ name: 'dashboard' })
   } catch (err: any) {
@@ -210,26 +192,7 @@ const handleRegister = async () => {
   error.value = ''
   isLoading.value = true
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-        name: name.value,
-        clubName: clubName.value
-      })
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Registration failed' }))
-      throw new Error(errorData.message || 'Registration failed')
-    }
-
-    const data = await response.json()
+    const data = await api.register(email.value, password.value, name.value, clubName.value)
     persistAuth(data)
     router.push({ name: 'dashboard' })
   } catch (err: any) {

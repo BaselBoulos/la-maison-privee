@@ -1,40 +1,81 @@
 // API Service - Calls backend API endpoints
 // Use relative path when no env var is set (for same-domain deployments like Render)
 // Or use absolute URL from env var (for separate frontend/backend deployments)
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const getClubId = () => {
   const stored = localStorage.getItem('clubId')
   return stored ? Number(stored) : 1
 }
 
+// Centralized HTTP service
+export const httpService = {
+  /**
+   * Make an API request with automatic authentication and club ID handling
+   */
+  async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const token = localStorage.getItem('authToken')
+    const clubId = getClubId()
+
+    const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
+    if (clubId && !url.searchParams.has('clubId')) {
+      url.searchParams.set('clubId', String(clubId))
+    }
+    
+    const response = await fetch(url.toString(), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(clubId && { 'X-Club-Id': String(clubId) }),
+        ...options?.headers,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }))
+      const errorObj = new Error(error.message || `HTTP error! status: ${response.status}`) as any
+      errorObj.response = { data: error, status: response.status }
+      throw errorObj
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Make an API request without authentication (for login, register, etc.)
+   */
+  async requestWithoutAuth<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const clubId = getClubId()
+
+    const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
+    if (clubId && !url.searchParams.has('clubId')) {
+      url.searchParams.set('clubId', String(clubId))
+    }
+    
+    const response = await fetch(url.toString(), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(clubId && { 'X-Club-Id': String(clubId) }),
+        ...options?.headers,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }))
+      const errorObj = new Error(error.message || `HTTP error! status: ${response.status}`) as any
+      errorObj.response = { data: error, status: response.status }
+      throw errorObj
+    }
+
+    return response.json()
+  }
+}
+
+// Legacy function for backward compatibility
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('authToken')
-  const clubId = getClubId()
-
-  const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
-  if (clubId && !url.searchParams.has('clubId')) {
-    url.searchParams.set('clubId', String(clubId))
-  }
-  
-  const response = await fetch(url.toString(), {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...(clubId && { 'X-Club-Id': String(clubId) }),
-      ...options?.headers,
-    },
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }))
-    const errorObj = new Error(error.message || `HTTP error! status: ${response.status}`) as any
-    errorObj.response = { data: error, status: response.status }
-    throw errorObj
-  }
-
-  return response.json()
+  return httpService.request<T>(endpoint, options)
 }
 
 // Upload file function
@@ -160,6 +201,21 @@ export interface Club {
 
 // API Functions
 export const api = {
+  // Auth
+  async login(email: string, password: string): Promise<{ token: string; user: any }> {
+    return httpService.requestWithoutAuth<{ token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+  },
+
+  async register(email: string, password: string, name: string, clubName?: string): Promise<{ token: string; user: any }> {
+    return httpService.requestWithoutAuth<{ token: string; user: any }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name, clubName }),
+    })
+  },
+
   // Members
   async getMembers(filters?: {
     interests?: string[]
