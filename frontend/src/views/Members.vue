@@ -189,6 +189,7 @@
                       <div class="member-info">
                         <div class="member-name-row">
                           <span class="member-name">{{ member.name }}</span>
+                          <span v-if="member.addedManually" class="manual-badge">Manual</span>
                           <MemberTierBadge v-if="member.tier" :tier="member.tier" />
                         </div>
                       </div>
@@ -504,6 +505,37 @@
                 />
               </div>
             </div>
+            <div class="form-group full-width">
+              <label>Profile Photo</label>
+              <div class="image-upload-container">
+                <div v-if="memberPhotoPreview" class="image-preview">
+                  <img :src="memberPhotoPreview" alt="Profile preview" />
+                  <button type="button" class="remove-image-btn" @click="removeMemberPhoto">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <label v-else class="image-upload-label">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    @change="handleMemberPhotoSelect"
+                    class="image-upload-input"
+                  />
+                  <div class="image-upload-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Click to upload profile photo</span>
+                    <small>JPEG, PNG, GIF, or WebP (max 5MB)</small>
+                  </div>
+                </label>
+              </div>
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Status</label>
@@ -514,13 +546,20 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Invitation Code</label>
-                <input 
-                  v-model="newMember.invitationCode" 
-                  type="text" 
-                  class="form-input" 
-                  placeholder="Optional"
-                />
+                <label>Invitation Code *</label>
+                <div class="invite-row">
+                  <input 
+                    v-model="newMember.invitationCode" 
+                    type="text" 
+                    :class="['form-input', { 'input-error': errors.invitationCode }]" 
+                    placeholder="e.g. LMP-1A2B3"
+                    @input="clearError('invitationCode')"
+                  />
+                  <button type="button" class="btn btn-secondary btn-generate" @click="generateInvitationCode">
+                    Generate
+                  </button>
+                </div>
+                <span v-if="errors.invitationCode" class="error-message">{{ errors.invitationCode }}</span>
               </div>
             </div>
             <div class="form-group full-width">
@@ -573,7 +612,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { api, type Member, type Interest } from '../services/api'
+import { api, type Member, type Interest, type Club } from '../services/api'
 import MemberTierBadge from '../components/MemberTierBadge.vue'
 import { useToast } from '../composables/useToast'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
@@ -585,6 +624,7 @@ const members = ref<Member[]>([])
 const interests = ref<Interest[]>([])
 const filteredMembers = ref<Member[]>([])
 const selectedMembers = ref<string[]>([])
+const currentClubName = ref<string>('Club')
 
 // Mobile features
 const showFilterDrawer = ref<boolean | null>(null) // null = auto (desktop visible, mobile drawer)
@@ -600,13 +640,19 @@ const newMember = ref({
   city: '',
   interests: [] as string[],
   status: 'invited' as 'active' | 'inactive' | 'invited',
-  invitationCode: ''
+  invitationCode: '',
+  addedManually: true
 })
 const errors = ref<{
   name?: string
   email?: string
   phone?: string
+  invitationCode?: string
 }>({})
+
+// Profile photo upload
+const memberPhotoFile = ref<File | null>(null)
+const memberPhotoPreview = ref<string | null>(null)
 
 // Bulk operation modals
 const showBulkInterestsModal = ref(false)
@@ -878,13 +924,37 @@ const validateMemberForm = (): boolean => {
     isValid = false
   }
 
+  // Validate invitation code
+  if (!newMember.value.invitationCode || newMember.value.invitationCode.trim() === '') {
+    errors.value.invitationCode = 'Invitation code is required'
+    isValid = false
+  }
+
   return isValid
 }
 
-const clearError = (field: 'name' | 'email' | 'phone') => {
+const clearError = (field: 'name' | 'email' | 'phone' | 'invitationCode') => {
   if (errors.value[field]) {
     delete errors.value[field]
   }
+}
+
+const getClubPrefix = () => {
+  const name = currentClubName.value || 'Club'
+  const letters = name
+    .split(/\s+/)
+    .map(word => word.trim().charAt(0))
+    .filter(Boolean)
+    .join('')
+    .toUpperCase()
+  return letters || 'CLUB'
+}
+
+const generateInvitationCode = () => {
+  const prefix = getClubPrefix()
+  const random = Math.random().toString(36).toUpperCase().slice(2, 6)
+  newMember.value.invitationCode = `${prefix}-${random}`
+  clearError('invitationCode')
 }
 
 const handleAddMember = async () => {
@@ -896,6 +966,20 @@ const handleAddMember = async () => {
   
   isAddingMember.value = true
   try {
+    // Upload profile photo if selected
+    let profilePhotoUrl: string | undefined
+    if (memberPhotoFile.value) {
+      try {
+        const uploadResult = await api.uploadImage(memberPhotoFile.value)
+        profilePhotoUrl = uploadResult.path
+      } catch (error) {
+        console.error('Error uploading profile photo:', error)
+        toast.showToast('Failed to upload profile photo. Please try again.', 'error')
+        isAddingMember.value = false
+        return
+      }
+    }
+
     const created = await api.createMember({
       name: newMember.value.name.trim(),
       email: newMember.value.email.trim(),
@@ -903,7 +987,9 @@ const handleAddMember = async () => {
       city: newMember.value.city?.trim() || undefined,
       interests: newMember.value.interests,
       status: newMember.value.status,
-      invitationCode: newMember.value.invitationCode?.trim() || undefined
+      invitationCode: newMember.value.invitationCode?.trim(),
+      profilePhoto: profilePhotoUrl,
+      addedManually: true
     })
     toast.showToast(`Member "${created.name}" added successfully`, 'success')
     closeAddMemberModal()
@@ -926,6 +1012,35 @@ const toggleInterest = (interestName: string) => {
   }
 }
 
+const handleMemberPhotoSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.showToast('Please select an image file', 'error')
+      return
+    }
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.showToast('Image size must be less than 5MB', 'error')
+      return
+    }
+    memberPhotoFile.value = file
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      memberPhotoPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removeMemberPhoto = () => {
+  memberPhotoFile.value = null
+  memberPhotoPreview.value = null
+}
+
 const closeAddMemberModal = () => {
   showAddMemberModal.value = false
   errors.value = {}
@@ -936,8 +1051,11 @@ const closeAddMemberModal = () => {
     city: '',
     interests: [],
     status: 'invited',
-    invitationCode: ''
+    invitationCode: '',
+    addedManually: true
   }
+  memberPhotoFile.value = null
+  memberPhotoPreview.value = null
 }
 
 const refreshData = async () => {
@@ -945,6 +1063,10 @@ const refreshData = async () => {
     members.value = await api.getMembers()
     filteredMembers.value = [...members.value]
     interests.value = await api.getInterests()
+    const club = await api.getCurrentClub().catch(() => null as Club | null)
+    if (club?.name) {
+      currentClubName.value = club.name
+    }
   } catch (error: any) {
     toast.showToast('Failed to refresh data', 'error')
   }
@@ -1267,6 +1389,18 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.manual-badge {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .member-name {
   font-weight: 600;
   color: #ffffff;
@@ -1566,6 +1700,16 @@ onMounted(async () => {
   gap: var(--spacing-xs);
 }
 
+.invite-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--spacing-sm);
+}
+
+.btn-generate {
+  white-space: nowrap;
+}
+
 .form-group.full-width {
   grid-column: 1 / -1;
 }
@@ -1617,6 +1761,93 @@ onMounted(async () => {
   outline: none;
   border-color: var(--color-gold);
   box-shadow: 0 0 0 2px var(--color-gold-subtle);
+}
+
+/* Image Upload Styles */
+.image-upload-container {
+  margin-top: 10px;
+}
+
+.image-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.image-upload-input {
+  display: none;
+}
+
+.image-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  background: #1a1a1a;
+  border: 2px dashed #2a2a2a;
+  border-radius: 8px;
+  transition: all 0.2s;
+  color: #888;
+}
+
+.image-upload-placeholder:hover {
+  border-color: #d4af37;
+  background: #2a2a2a;
+  color: #d4af37;
+}
+
+.image-upload-placeholder svg {
+  opacity: 0.6;
+}
+
+.image-upload-placeholder span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.image-upload-placeholder small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.image-preview {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 300px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(220, 38, 38, 0.9);
+  transform: scale(1.1);
 }
 
 .form-input.input-error {

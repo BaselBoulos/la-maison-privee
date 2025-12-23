@@ -13,7 +13,12 @@ const invitationCodes = [
 
 const persist = () => {
   const delta = invitationCodes.filter(c => !baseMockIds.has(c.id))
-  saveRuntimeData({ invitationCodes: delta })
+  const currentRuntime = loadRuntimeData()
+  saveRuntimeData({
+    invitationCodes: delta,
+    clubs: currentRuntime.clubs || [],
+    admins: currentRuntime.admins || []
+  })
 }
 
 const generateCode = (): string => {
@@ -99,6 +104,79 @@ export const generateInvitationCodes = async (req: Request, res: Response) => {
     res.status(201).json(newCodes)
   } catch (error: any) {
     res.status(500).json({ message: error.message })
+  }
+}
+
+export const verifyInvitationCode = async (req: Request, res: Response) => {
+  try {
+    const { code: codeString } = req.body
+    
+    if (!codeString || typeof codeString !== 'string') {
+      return res.status(400).json({ message: 'Invitation code is required' })
+    }
+    
+    // Search for the code (can be across all clubs for user onboarding)
+    const code = invitationCodes.find(c => c.code.toUpperCase() === codeString.toUpperCase().trim())
+    
+    if (!code) {
+      return res.status(404).json({ 
+        valid: false,
+        message: 'Invitation code not found' 
+      })
+    }
+    
+    // Check if code is already used
+    if (code.status === 'used') {
+      return res.status(400).json({ 
+        valid: false,
+        message: 'This invitation code has already been used',
+        code: {
+          id: code.id,
+          code: code.code,
+          status: code.status,
+          usedAt: code.usedAt,
+          assignedMemberName: code.assignedMemberName
+        }
+      })
+    }
+    
+    // Check if code has expired
+    if (code.expiresAt) {
+      const expiresAt = new Date(code.expiresAt)
+      const now = new Date()
+      
+      if (now > expiresAt) {
+        return res.status(400).json({ 
+          valid: false,
+          message: 'This invitation code has expired',
+          code: {
+            id: code.id,
+            code: code.code,
+            status: code.status,
+            expiresAt: code.expiresAt
+          }
+        })
+      }
+    }
+    
+    // Code is valid
+    res.json({
+      valid: true,
+      message: 'Invitation code is valid',
+      code: {
+        id: code.id,
+        code: code.code,
+        status: code.status,
+        createdAt: code.createdAt,
+        expiresAt: code.expiresAt,
+        clubId: code.clubId
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ 
+      valid: false,
+      message: error.message 
+    })
   }
 }
 

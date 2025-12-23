@@ -527,6 +527,27 @@ export const mockInvitationCodes: InvitationCode[] = [
     clubId: 1
   },
   {
+    id: '33',
+    code: 'LMP-DEMO1',
+    status: 'unused',
+    createdAt: '2025-01-01',
+    clubId: 1
+  },
+  {
+    id: '34',
+    code: 'LMP-DEMO2',
+    status: 'unused',
+    createdAt: '2025-01-01',
+    clubId: 1
+  },
+  {
+    id: '35',
+    code: 'LMP-TEST1',
+    status: 'unused',
+    createdAt: '2025-01-01',
+    clubId: 1
+  },
+  {
     id: '12',
     code: 'CLUB-7F8G3',
     status: 'unused',

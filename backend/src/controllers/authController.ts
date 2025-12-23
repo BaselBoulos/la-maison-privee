@@ -167,39 +167,3 @@ export const register = async (req: Request, res: Response) => {
   }
 }
 
-export const verifyToken = async (req: Request, res: Response) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token provided' })
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
-    
-    const admins = mergedAdmins(MOCK_ADMINS)
-    const clubs = mergedClubs(mockClubs)
-    const admin = admins.find(a => a.id === decoded.adminId)
-    
-    if (admin) {
-      const allowed = admin.role === 'super' ? clubs.map(c => c.id) : admin.allowedClubIds
-      const club = admin.clubId ? clubs.find(c => c.id === (decoded.clubId || admin.clubId)) : undefined
-      res.json({ 
-        admin: {
-          id: admin.id,
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          clubId: decoded.clubId || admin.clubId,
-          allowedClubIds: allowed
-        },
-        club
-      })
-    } else {
-      return res.status(401).json({ message: 'Invalid token' })
-    }
-  } catch (error: any) {
-    res.status(401).json({ message: 'Invalid token' })
-  }
-}
-

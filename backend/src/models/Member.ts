@@ -9,6 +9,7 @@ export interface IMember extends Document {
   status: 'active' | 'inactive' | 'invited'
   invitationCode: mongoose.Types.ObjectId
   joinedDate: Date
+  profilePhoto?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -52,6 +53,9 @@ const MemberSchema = new Schema<IMember>(
     joinedDate: {
       type: Date,
       default: Date.now
+    },
+    profilePhoto: {
+      type: String
     }
   },
   {

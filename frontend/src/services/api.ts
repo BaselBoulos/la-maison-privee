@@ -35,6 +35,42 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
   return response.json()
 }
 
+// Upload file function
+async function uploadFile(file: File): Promise<{ path: string; filename: string }> {
+  const token = localStorage.getItem('authToken')
+  const clubId = getClubId()
+  const formData = new FormData()
+  formData.append('image', file)
+
+  const url = new URL(`${API_BASE_URL}/upload/image`, window.location.origin)
+  if (clubId) {
+    url.searchParams.set('clubId', String(clubId))
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(clubId && { 'X-Club-Id': String(clubId) }),
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Upload failed' }))
+    throw new Error(error.message || `Upload failed: ${response.status}`)
+  }
+
+  const result = await response.json()
+  // Return full URL path - use the path from server which is relative to uploads root
+  const baseUrl = API_BASE_URL.replace('/api', '')
+  // The server returns path like /uploads/images/filename.jpg
+  return {
+    path: `${baseUrl}${result.path}`,
+    filename: result.filename
+  }
+}
+
 export interface Member {
   id: string
   name: string
@@ -48,6 +84,7 @@ export interface Member {
   profilePhoto?: string
   tier?: 'Standard' | 'Premium' | 'Platinum' | 'VIP' | 'Founding'
   clubId?: string
+  addedManually?: boolean
 }
 
 export interface Interest {
@@ -375,5 +412,10 @@ export const api = {
 
   async getEventAttendance(eventId: string): Promise<any> {
     return apiRequest(`/events/${eventId}/attendance`)
+  },
+
+  // File Upload
+  async uploadImage(file: File): Promise<{ path: string; filename: string }> {
+    return uploadFile(file)
   }
 }

@@ -141,7 +141,7 @@ export const updateMember = async (req: Request, res: Response) => {
 export const createMember = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const { name, email, phone, city, interests, status, invitationCode } = req.body
+    const { name, email, phone, city, interests, status, invitationCode, profilePhoto } = req.body
     
     if (!name || !email || !phone) {
       return res.status(400).json({ message: 'Name, email, and phone are required' })
@@ -166,6 +166,7 @@ export const createMember = async (req: Request, res: Response) => {
       status: status || 'invited',
       joinedDate: new Date().toISOString(),
       invitationCode: invitationCode || undefined,
+      profilePhoto: profilePhoto || undefined,
       clubId
     }
     

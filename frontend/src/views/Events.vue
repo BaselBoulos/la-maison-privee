@@ -192,6 +192,38 @@
             </div>
 
             <div class="form-group full-width">
+              <label>Event Image</label>
+              <div class="image-upload-container">
+                <div v-if="eventImagePreview" class="image-preview">
+                  <img :src="eventImagePreview" alt="Event preview" />
+                  <button type="button" class="remove-image-btn" @click="removeEventImage">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <label v-else class="image-upload-label">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    @change="handleEventImageSelect"
+                    class="image-upload-input"
+                  />
+                  <div class="image-upload-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Click to upload image</span>
+                    <small>JPEG, PNG, GIF, or WebP (max 5MB)</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group full-width">
               <label>Target Interests</label>
               <div class="interests-grid">
                 <div 
@@ -353,6 +385,8 @@ const eventForm = ref({
 })
 
 const selectedInterests = ref<string[]>([])
+const eventImageFile = ref<File | null>(null)
+const eventImagePreview = ref<string | null>(null)
 
 const getInterestIcon = (name: string): string => {
   const icons: Record<string, string> = {
@@ -377,6 +411,35 @@ const toggleInterest = (interest: string) => {
   }
 }
 
+const handleEventImageSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.showToast('Please select an image file', 'error')
+      return
+    }
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.showToast('Image size must be less than 5MB', 'error')
+      return
+    }
+    eventImageFile.value = file
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      eventImagePreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removeEventImage = () => {
+  eventImageFile.value = null
+  eventImagePreview.value = null
+}
+
 const closeModal = () => {
   showCreateModal.value = false
   // Reset form
@@ -390,6 +453,8 @@ const closeModal = () => {
     description: ''
   }
   selectedInterests.value = []
+  eventImageFile.value = null
+  eventImagePreview.value = null
 }
 
 const createEvent = async () => {
@@ -401,6 +466,20 @@ const createEvent = async () => {
 
   isSubmitting.value = true
   try {
+    // Upload image if selected
+    let imageUrl: string | undefined
+    if (eventImageFile.value) {
+      try {
+        const uploadResult = await api.uploadImage(eventImageFile.value)
+        imageUrl = uploadResult.path
+      } catch (error) {
+        console.error('Error uploading image:', error)
+        toast.showToast('Failed to upload image. Please try again.', 'error')
+        isSubmitting.value = false
+        return
+      }
+    }
+
     // Get interest IDs from names
     const interestIds = interests.value
       .filter(i => selectedInterests.value.includes(i.name))
@@ -414,6 +493,7 @@ const createEvent = async () => {
       maxCapacity: eventForm.value.maxCapacity ? Number(eventForm.value.maxCapacity) : undefined,
       price: eventForm.value.price ? Number(eventForm.value.price) : undefined,
       description: eventForm.value.description,
+      image: imageUrl,
       targetInterests: interestIds,
       targetCities: []
     })
@@ -1010,6 +1090,93 @@ onMounted(async () => {
 .interest-name {
   font-size: 13px;
   color: #ffffff;
+}
+
+/* Image Upload Styles */
+.image-upload-container {
+  margin-top: 10px;
+}
+
+.image-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.image-upload-input {
+  display: none;
+}
+
+.image-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  background: #1a1a1a;
+  border: 2px dashed #2a2a2a;
+  border-radius: 8px;
+  transition: all 0.2s;
+  color: #888;
+}
+
+.image-upload-placeholder:hover {
+  border-color: #d4af37;
+  background: #2a2a2a;
+  color: #d4af37;
+}
+
+.image-upload-placeholder svg {
+  opacity: 0.6;
+}
+
+.image-upload-placeholder span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.image-upload-placeholder small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.image-preview {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 300px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(220, 38, 38, 0.9);
+  transform: scale(1.1);
 }
 
 /* Mobile Optimizations */
