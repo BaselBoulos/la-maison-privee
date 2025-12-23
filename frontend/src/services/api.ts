@@ -1,5 +1,7 @@
 // API Service - Calls backend API endpoints
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+// Use relative path when no env var is set (for same-domain deployments like Render)
+// Or use absolute URL from env var (for separate frontend/backend deployments)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const getClubId = () => {
   const stored = localStorage.getItem('clubId')
@@ -63,7 +65,17 @@ async function uploadFile(file: File): Promise<{ path: string; filename: string 
 
   const result = await response.json()
   // Return full URL path - use the path from server which is relative to uploads root
-  const baseUrl = API_BASE_URL.replace('/api', '')
+  // If API_BASE_URL is relative (/api), baseUrl will be empty (root)
+  // If API_BASE_URL is absolute (http://...), extract the origin
+  let baseUrl = ''
+  if (API_BASE_URL.startsWith('http')) {
+    try {
+      const apiUrl = new URL(API_BASE_URL)
+      baseUrl = apiUrl.origin
+    } catch {
+      baseUrl = ''
+    }
+  }
   // The server returns path like /uploads/images/filename.jpg
   return {
     path: `${baseUrl}${result.path}`,
