@@ -15,11 +15,23 @@ export const connectDatabase = async (): Promise<void> => {
       // Recommended connection options for MongoDB Atlas
       retryWrites: true,
       w: 'majority',
+      // Connection pool options
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      // Server selection timeout (increased for network issues)
+      serverSelectionTimeoutMS: 30000,
+      // Socket timeout
+      socketTimeoutMS: 45000,
+      // Connection timeout
+      connectTimeoutMS: 30000,
+      // Retry options
+      retryReads: true,
     })
     console.log('✅ Connected to MongoDB')
     console.log(`📊 Database: ${mongoose.connection.name}`)
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)
+    console.error('❌ Connection URI (masked):', dashboardUri.replace(/:[^:@]+@/, ':****@'))
     throw new Error('Failed to connect to MongoDB. Please check your MONGODB_URI and network connection.')
   }
 }
