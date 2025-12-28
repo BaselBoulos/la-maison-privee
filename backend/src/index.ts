@@ -19,7 +19,7 @@ const PORT = Number(process.env.PORT) || 3000
 
 // Middleware - CORS Configuration
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps, Postman, or curl requests)
     if (!origin) {
       return callback(null, true)

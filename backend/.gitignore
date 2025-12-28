@@ -16,3 +16,9 @@ uploads/*
 .idea/
 runtimeData.json
 
+# Testing files (not needed in production)
+src/scripts/test-production-build.ts
+src/scripts/test-connection.ts
+src/scripts/verify-data.ts
+src/scripts/fix-admins.ts
+
