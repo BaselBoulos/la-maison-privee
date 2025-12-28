@@ -12,6 +12,7 @@ import clubRoutes from './routes/clubs'
 import communicationRoutes from './routes/communication'
 import uploadRoutes from './routes/upload'
 import path from 'path'
+import fs from 'fs'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3000
@@ -108,7 +109,13 @@ app.use('/api/*', (req, res) => {
 // Serve frontend app for all non-API routes (SPA fallback)
 app.get('*', (req, res) => {
   // Serve index.html for all other routes (SPA routing)
-  res.sendFile(path.join(__dirname, '../public/index.html'))
+  const indexPath = path.join(__dirname, '../public/index.html')
+  // Check if index.html exists, if not return 404
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath)
+  } else {
+    res.status(404).json({ message: 'Frontend not found. Please build the frontend first.' })
+  }
 })
 
 // Start server

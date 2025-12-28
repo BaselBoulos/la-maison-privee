@@ -14,7 +14,11 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ message: 'Authentication required' })
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret) {
+      return res.status(500).json({ message: 'Server configuration error: JWT_SECRET not set' })
+    }
+    const decoded = jwt.verify(token, jwtSecret) as any
     const admin = await Admin.findById(decoded.adminId || decoded._id).select('-password')
     
     if (!admin) {

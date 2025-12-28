@@ -12,7 +12,11 @@ export const getClubId = (req: Request): number => {
   try {
     const token = (req.headers.authorization as string | undefined)?.replace('Bearer ', '')
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+      const jwtSecret = process.env.JWT_SECRET
+      if (!jwtSecret) {
+        return 1 // Default club ID if JWT_SECRET is not configured
+      }
+      const decoded = jwt.verify(token, jwtSecret) as any
       tokenRole = decoded.role
       tokenClubId = decoded.clubId ? Number(decoded.clubId) : undefined
       tokenAllowedClubIds = decoded.allowedClubIds ? decoded.allowedClubIds.map((id: any) => Number(id)) : undefined

@@ -7,7 +7,11 @@ import bcrypt from 'bcryptjs'
 type AdminRole = 'super' | 'club'
 
 const generateToken = (adminId: string, role: AdminRole, clubId?: number, allowedClubIds?: number[]): string => {
-  return jwt.sign({ adminId, role, clubId, allowedClubIds }, process.env.JWT_SECRET || 'fallback-secret', {
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return jwt.sign({ adminId, role, clubId, allowedClubIds }, jwtSecret, {
     expiresIn: '7d'
   })
 }

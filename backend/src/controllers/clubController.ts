@@ -50,7 +50,11 @@ export const deleteClub = async (req: Request, res: Response) => {
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret) {
+      return res.status(500).json({ message: 'Server configuration error: JWT_SECRET not set' })
+    }
+    const decoded = jwt.verify(token, jwtSecret) as any
     if (decoded.role !== 'super') {
       return res.status(403).json({ message: 'Only super admins can delete clubs' })
     }
