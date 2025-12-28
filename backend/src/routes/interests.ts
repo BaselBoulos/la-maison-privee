@@ -1,7 +1,12 @@
 import express from 'express'
-import { getInterests, getAllInterests, createInterest, updateInterest, deleteInterest } from '../controllers/interestController'
+import { getInterests, getAllInterests, createInterest, updateInterest, deleteInterest, getInterestsByClub } from '../controllers/interestController'
 
 const router = express.Router()
+
+// Get interests for a specific club (mobile app endpoint)
+// Must come before /:id route to avoid conflicts
+// Supports: /api/interests/club/:clubId or /api/interests/club?clubId=X
+router.get('/club/:clubId?', getInterestsByClub)
 
 // Get enabled interests only
 router.get('/', getInterests)

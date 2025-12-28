@@ -115,3 +115,42 @@ export const deleteInterest = async (req: Request, res: Response) => {
   }
 }
 
+/**
+ * Get interests for a specific club (mobile app endpoint)
+ * Accepts clubId as path parameter or query parameter
+ * Returns only enabled interests
+ */
+export const getInterestsByClub = async (req: Request, res: Response) => {
+  try {
+    // Get clubId from path parameter, query parameter, or header
+    const clubId = req.params.clubId 
+      ? Number(req.params.clubId) 
+      : req.query.clubId 
+        ? Number(req.query.clubId)
+        : getClubId(req)
+    
+    if (!clubId || isNaN(clubId)) {
+      return res.status(400).json({ message: 'Valid clubId is required' })
+    }
+    
+    // Get enabled interests for the specified club
+    const interests = mockInterests
+      .filter(i => i.enabled && (!i.clubId || i.clubId === clubId))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(i => ({
+        id: i.id,
+        name: i.name,
+        icon: i.icon,
+        enabled: i.enabled
+      }))
+    
+    res.json({
+      clubId,
+      interests,
+      count: interests.length
+    })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
