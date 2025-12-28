@@ -5,6 +5,9 @@ export interface IAdmin extends Document {
   email: string
   password: string
   name: string
+  role: 'super' | 'club'
+  clubId?: number
+  allowedClubIds?: number[]
   createdAt: Date
   updatedAt: Date
   comparePassword(candidatePassword: string): Promise<boolean>
@@ -28,7 +31,18 @@ const AdminSchema = new Schema<IAdmin>(
       type: String,
       required: true,
       trim: true
-    }
+    },
+    role: {
+      type: String,
+      enum: ['super', 'club'],
+      default: 'club'
+    },
+    clubId: {
+      type: Number
+    },
+    allowedClubIds: [{
+      type: Number
+    }]
   },
   {
     timestamps: true

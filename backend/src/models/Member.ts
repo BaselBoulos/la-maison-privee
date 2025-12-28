@@ -10,6 +10,7 @@ export interface IMember extends Document {
   invitationCode: mongoose.Types.ObjectId
   joinedDate: Date
   profilePhoto?: string
+  clubId: number
   createdAt: Date
   updatedAt: Date
 }
@@ -24,7 +25,6 @@ const MemberSchema = new Schema<IMember>(
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true
     },
@@ -56,12 +56,23 @@ const MemberSchema = new Schema<IMember>(
     },
     profilePhoto: {
       type: String
+    },
+    clubId: {
+      type: Number,
+      required: true,
+      index: true
     }
   },
   {
     timestamps: true
   }
 )
+
+// Add indexes for performance
+// Email should be unique per club (compound index)
+MemberSchema.index({ clubId: 1, email: 1 }, { unique: true })
+MemberSchema.index({ clubId: 1, status: 1 })
+MemberSchema.index({ clubId: 1, city: 1 })
 
 export default mongoose.model<IMember>('Member', MemberSchema)
 

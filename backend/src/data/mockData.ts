@@ -1,5 +1,7 @@
-// Mock Data - Hardcoded for demo purposes
-// This will be replaced with database queries later
+// Mock Data - Used ONLY for database migration script (migrate-demo-data.ts)
+// This file is kept for one-time migration purposes only
+// All application code now uses MongoDB database
+// DO NOT import this file in production code - use database models instead
 
 export interface Member {
   id: string

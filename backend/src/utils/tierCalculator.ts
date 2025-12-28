@@ -1,4 +1,13 @@
-import { mockEvents, type Event } from '../data/mockData'
+// Event type for tier calculation
+export interface Event {
+  id: string
+  date: string
+  rsvps: {
+    yes: string[]
+    no: string[]
+    maybe: string[]
+  }
+}
 
 export type Tier = 'Standard' | 'Premium' | 'Platinum' | 'VIP' | 'Founding'
 
@@ -21,7 +30,7 @@ export const TIER_RULES = {
 /**
  * Calculate the number of events a member has attended (past events where they RSVP'd "yes")
  */
-export const calculateAttendanceCount = (memberId: string, events: Event[] = mockEvents): number => {
+export const calculateAttendanceCount = (memberId: string, events: Event[]): number => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   now.setMinutes(0, 0, 0)
@@ -58,7 +67,7 @@ export const calculateAttendanceCount = (memberId: string, events: Event[] = moc
  * - VIP: 15-24 events
  * - Founding: 25+ events
  */
-export const calculateTier = (memberId: string, events: Event[] = mockEvents): Tier => {
+export const calculateTier = (memberId: string, events: Event[]): Tier => {
   const attendanceCount = calculateAttendanceCount(memberId, events)
   
   if (attendanceCount >= TIER_RULES.Founding.min) {

@@ -1,21 +1,26 @@
 import mongoose from 'mongoose'
 
 export const connectDatabase = async (): Promise<void> => {
-  // Skip database connection if MONGODB_URI is not set or if SKIP_DB is true
-  if (process.env.SKIP_DB === 'true' || !process.env.MONGODB_URI) {
-    console.log('⚠️  Database connection skipped (using mock data)')
-    return
+  const mongoUri = process.env.MONGODB_URI
+  
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI environment variable is required. Please set it in your .env file.')
   }
-
+  
+  // Replace database name with "dashboard" if not already set
+  const dashboardUri = mongoUri.replace(/\/[^/?]+(\?|$)/, '/dashboard$1')
+  
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/inner-circle'
-    
-    await mongoose.connect(mongoUri)
+    await mongoose.connect(dashboardUri, {
+      // Recommended connection options for MongoDB Atlas
+      retryWrites: true,
+      w: 'majority',
+    })
     console.log('✅ Connected to MongoDB')
+    console.log(`📊 Database: ${mongoose.connection.name}`)
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)
-    console.log('⚠️  Continuing without database (using mock data)')
-    // Don't throw - allow app to continue with mock data
+    throw new Error('Failed to connect to MongoDB. Please check your MONGODB_URI and network connection.')
   }
 }
 
@@ -26,6 +31,10 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected')
+})
+
+mongoose.connection.on('connected', () => {
+  console.log(`✅ MongoDB connected to: ${mongoose.connection.host}`)
 })
 
 process.on('SIGINT', async () => {

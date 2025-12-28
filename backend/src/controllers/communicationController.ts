@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
-import { mockMembers, mockClubs } from '../data/mockData'
+import Member from '../models/Member'
+import Club from '../models/Club'
 import { buildEmailContent, sendEmail } from '../services/emailService'
 import { getClubId } from '../utils/club'
 
@@ -26,17 +27,20 @@ export const sendEmailToMember = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'memberId, subject, and body are required.' })
     }
     
-    const member = mockMembers.find(m => m.id === memberId && m.clubId === clubId)
+    const member = await Member.findOne({
+      _id: memberId,
+      clubId
+    }).lean()
     
     if (!member) {
       return res.status(404).json({ message: 'Member not found' })
     }
     
-    const club = mockClubs.find(c => c.id === clubId)
+    const club = await Club.findOne({ id: clubId }).lean()
     const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
     const baseRecord = {
       id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      memberId: member.id,
+      memberId: member._id.toString(),
       memberEmail: member.email,
       subject,
       body,
@@ -87,11 +91,14 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
       notFound: [] as string[]
     }
     
-    const club = mockClubs.find(c => c.id === clubId)
+    const club = await Club.findOne({ id: clubId }).lean()
     const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
 
     for (const memberId of memberIds) {
-      const member = mockMembers.find(m => m.id === memberId && m.clubId === clubId)
+      const member = await Member.findOne({
+        _id: memberId,
+        clubId
+      }).lean()
       
       if (!member) {
         results.notFound.push(memberId)
@@ -109,7 +116,7 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
 
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          memberId: member.id,
+          memberId: member._id.toString(),
           memberEmail: member.email,
           subject,
           body,
@@ -124,7 +131,7 @@ export const sendBulkEmails = async (req: Request, res: Response) => {
         console.error('[EMAIL][BULK] Failed', { to: member.email, subject, memberId, error: (error as Error)?.message })
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          memberId: member.id,
+          memberId: member._id.toString(),
           memberEmail: member.email,
           subject,
           body,
@@ -162,45 +169,38 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'subject and body are required.' })
     }
     
-    let filteredMembers = mockMembers.filter(m => m.clubId === clubId)
+    const query: any = { clubId }
     
     // Apply filters
     if (filters) {
-      if (filters.interests && Array.isArray(filters.interests)) {
-        filteredMembers = filteredMembers.filter(m => 
-          m.interests.some(i => filters.interests.includes(i))
-        )
-      }
-      
       if (filters.cities && Array.isArray(filters.cities)) {
-        filteredMembers = filteredMembers.filter(m => 
-          m.city && filters.cities.includes(m.city)
-        )
+        query.city = { $in: filters.cities }
       }
       
       if (filters.status && Array.isArray(filters.status)) {
-        filteredMembers = filteredMembers.filter(m => 
-          filters.status.includes(m.status)
-        )
+        query.status = { $in: filters.status }
       }
       
-      if (filters.tiers && Array.isArray(filters.tiers)) {
-        // Note: This would require calculating tiers, simplified for now
-        // In real implementation, you'd calculate tier for each member
+      // Handle interests filter
+      if (filters.interests && Array.isArray(filters.interests)) {
+        // This would require Interest model lookup - simplified for now
+        // In full implementation, convert interest names to ObjectIds
       }
     }
+    
+    const filteredMembers = await Member.find(query).lean()
     
     const results = {
       sent: [] as string[],
       failed: [] as string[]
     }
     
-    const club = mockClubs.find(c => c.id === clubId)
+    const club = await Club.findOne({ id: clubId }).lean()
     const { html, text } = buildEmailContent(subject, body, club?.name || 'La Maison Privée')
 
     for (const member of filteredMembers) {
       try {
-        console.log('[EMAIL][FILTERED] Sending', { to: member.email, subject, memberId: member.id })
+        console.log('[EMAIL][FILTERED] Sending', { to: member.email, subject, memberId: member._id.toString() })
         await sendEmail({
           to: member.email,
           subject,
@@ -210,7 +210,7 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
 
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          memberId: member.id,
+          memberId: member._id.toString(),
           memberEmail: member.email,
           subject,
           body,
@@ -220,12 +220,12 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
         }
         
         emailHistory.push(emailRecord)
-        results.sent.push(member.id)
+        results.sent.push(member._id.toString())
       } catch (error) {
-        console.error('[EMAIL][FILTERED] Failed', { to: member.email, subject, memberId: member.id, error: (error as Error)?.message })
+        console.error('[EMAIL][FILTERED] Failed', { to: member.email, subject, memberId: member._id.toString(), error: (error as Error)?.message })
         const emailRecord = {
           id: `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          memberId: member.id,
+          memberId: member._id.toString(),
           memberEmail: member.email,
           subject,
           body,
@@ -236,7 +236,7 @@ export const sendFilteredEmails = async (req: Request, res: Response) => {
         }
 
         emailHistory.push(emailRecord)
-        results.failed.push(member.id)
+        results.failed.push(member._id.toString())
       }
     }
     
@@ -279,4 +279,3 @@ export const getAllEmailHistory = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message })
   }
 }
-

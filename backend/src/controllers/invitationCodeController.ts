@@ -1,25 +1,6 @@
 import { Request, Response } from 'express'
-import { mockInvitationCodes } from '../data/mockData'
-import { loadRuntimeData, saveRuntimeData } from '../data/runtimeStore'
+import InvitationCode from '../models/InvitationCode'
 import { getClubId } from '../utils/club'
-
-// Initialize runtime invitation codes (persisted between restarts)
-const runtimeData = loadRuntimeData()
-const baseMockIds = new Set(mockInvitationCodes.map(c => c.id))
-const invitationCodes = [
-  ...mockInvitationCodes,
-  ...runtimeData.invitationCodes.filter(c => !baseMockIds.has(c.id))
-]
-
-const persist = () => {
-  const delta = invitationCodes.filter(c => !baseMockIds.has(c.id))
-  const currentRuntime = loadRuntimeData()
-  saveRuntimeData({
-    invitationCodes: delta,
-    clubs: currentRuntime.clubs || [],
-    admins: currentRuntime.admins || []
-  })
-}
 
 const generateCode = (): string => {
   const prefix = 'CLUB-'
@@ -35,18 +16,34 @@ export const getInvitationCodes = async (req: Request, res: Response) => {
     const clubId = getClubId(req)
     const { status } = req.query
     
-    let filtered = invitationCodes.filter(c => c.clubId === clubId)
+    const query: any = { clubId }
     
     if (status) {
-      filtered = filtered.filter(c => c.status === status)
+      query.status = status
     }
     
-    // Sort by createdAt descending (newest first)
-    filtered.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const codes = await InvitationCode.find(query)
+      .populate('assignedMember', 'name email')
+      .sort({ createdAt: -1 })
+      .lean()
     
-    res.json(filtered)
+    const formatted = codes.map((c: any) => ({
+      id: c._id.toString(),
+      code: c.code,
+      status: c.status,
+      createdAt: c.createdAt.toISOString().split('T')[0],
+      usedAt: c.usedAt ? c.usedAt.toISOString().split('T')[0] : undefined,
+      expiresAt: c.expiresAt ? c.expiresAt.toISOString().split('T')[0] : undefined,
+      assignedMember: c.assignedMember ? {
+        id: c.assignedMember._id.toString(),
+        name: c.assignedMember.name,
+        email: c.assignedMember.email
+      } : undefined,
+      assignedMemberName: c.assignedMember ? c.assignedMember.name : undefined,
+      clubId: c.clubId
+    }))
+    
+    res.json(formatted)
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -55,13 +52,31 @@ export const getInvitationCodes = async (req: Request, res: Response) => {
 export const getInvitationCode = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const code = invitationCodes.find(c => c.id === req.params.id && c.clubId === clubId)
+    const code = await InvitationCode.findOne({
+      _id: req.params.id,
+      clubId
+    })
+      .populate('assignedMember', 'name email')
+      .lean()
     
     if (!code) {
       return res.status(404).json({ message: 'Invitation code not found' })
     }
     
-    res.json(code)
+    res.json({
+      id: code._id.toString(),
+      code: code.code,
+      status: code.status,
+      createdAt: code.createdAt.toISOString().split('T')[0],
+      usedAt: code.usedAt ? code.usedAt.toISOString().split('T')[0] : undefined,
+      expiresAt: code.expiresAt ? code.expiresAt.toISOString().split('T')[0] : undefined,
+      assignedMember: code.assignedMember && typeof code.assignedMember === 'object' && 'name' in code.assignedMember ? {
+        id: (code.assignedMember as any)._id.toString(),
+        name: (code.assignedMember as any).name,
+        email: (code.assignedMember as any).email
+      } : undefined,
+      clubId: code.clubId
+    })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -77,29 +92,31 @@ export const generateInvitationCodes = async (req: Request, res: Response) => {
     }
     
     const newCodes = []
-    const baseId = invitationCodes.length
     
     for (let i = 0; i < count; i++) {
       let codeString = generateCode()
       
       // Ensure uniqueness
-      while (invitationCodes.some(c => c.code === codeString)) {
+      let existing = await InvitationCode.findOne({ code: codeString })
+      while (existing) {
         codeString = generateCode()
+        existing = await InvitationCode.findOne({ code: codeString })
       }
       
-      const newCode = {
-        id: String(baseId + i + 1),
+      const newCode = await InvitationCode.create({
         code: codeString,
-        status: 'unused' as const,
-        createdAt: new Date().toISOString().split('T')[0],
+        status: 'unused',
         clubId
-      }
+      })
       
-      newCodes.push(newCode)
-      invitationCodes.push(newCode)
+      newCodes.push({
+        id: newCode._id.toString(),
+        code: newCode.code,
+        status: newCode.status,
+        createdAt: newCode.createdAt.toISOString().split('T')[0],
+        clubId: newCode.clubId
+      })
     }
-
-    persist()
     
     res.status(201).json(newCodes)
   } catch (error: any) {
@@ -116,7 +133,9 @@ export const verifyInvitationCode = async (req: Request, res: Response) => {
     }
     
     // Search for the code (can be across all clubs for user onboarding)
-    const code = invitationCodes.find(c => c.code.toUpperCase() === codeString.toUpperCase().trim())
+    const code = await InvitationCode.findOne({
+      code: codeString.toUpperCase().trim()
+    }).lean()
     
     if (!code) {
       return res.status(404).json({ 
@@ -131,11 +150,10 @@ export const verifyInvitationCode = async (req: Request, res: Response) => {
         valid: false,
         message: 'This invitation code has already been used',
         code: {
-          id: code.id,
+          id: code._id.toString(),
           code: code.code,
           status: code.status,
-          usedAt: code.usedAt,
-          assignedMemberName: code.assignedMemberName
+          usedAt: code.usedAt ? code.usedAt.toISOString().split('T')[0] : undefined
         }
       })
     }
@@ -150,10 +168,10 @@ export const verifyInvitationCode = async (req: Request, res: Response) => {
           valid: false,
           message: 'This invitation code has expired',
           code: {
-            id: code.id,
+            id: code._id.toString(),
             code: code.code,
             status: code.status,
-            expiresAt: code.expiresAt
+            expiresAt: code.expiresAt.toISOString().split('T')[0]
           }
         })
       }
@@ -164,11 +182,11 @@ export const verifyInvitationCode = async (req: Request, res: Response) => {
       valid: true,
       message: 'Invitation code is valid',
       code: {
-        id: code.id,
+        id: code._id.toString(),
         code: code.code,
         status: code.status,
-        createdAt: code.createdAt,
-        expiresAt: code.expiresAt,
+        createdAt: code.createdAt.toISOString().split('T')[0],
+        expiresAt: code.expiresAt ? code.expiresAt.toISOString().split('T')[0] : undefined,
         clubId: code.clubId
       }
     })
@@ -183,24 +201,23 @@ export const verifyInvitationCode = async (req: Request, res: Response) => {
 export const revokeInvitationCode = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const codeIndex = invitationCodes.findIndex(c => c.id === req.params.id && c.clubId === clubId)
+    const code = await InvitationCode.findOne({
+      _id: req.params.id,
+      clubId
+    })
     
-    if (codeIndex === -1) {
+    if (!code) {
       return res.status(404).json({ message: 'Invitation code not found' })
     }
-    
-    const code = invitationCodes[codeIndex]
     
     if (code.status === 'used') {
       return res.status(400).json({ message: 'Cannot revoke a used code' })
     }
     
-    invitationCodes.splice(codeIndex, 1)
-    persist()
+    await InvitationCode.findByIdAndDelete(code._id)
     
     res.json({ message: 'Invitation code revoked successfully' })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
 }
-

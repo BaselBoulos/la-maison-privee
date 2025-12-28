@@ -4,6 +4,7 @@ export interface IInvitationCode extends Document {
   code: string
   status: 'unused' | 'used'
   assignedMember?: mongoose.Types.ObjectId
+  clubId: number
   createdAt: Date
   usedAt?: Date
   expiresAt?: Date
@@ -32,6 +33,11 @@ const InvitationCodeSchema = new Schema<IInvitationCode>(
     },
     expiresAt: {
       type: Date
+    },
+    clubId: {
+      type: Number,
+      required: true,
+      index: true
     }
   },
   {
@@ -39,9 +45,9 @@ const InvitationCodeSchema = new Schema<IInvitationCode>(
   }
 )
 
-// Index for faster lookups
-InvitationCodeSchema.index({ code: 1 })
+// Index for faster lookups (code already indexed by unique: true)
 InvitationCodeSchema.index({ status: 1 })
+InvitationCodeSchema.index({ clubId: 1, status: 1 })
 
 export default mongoose.model<IInvitationCode>('InvitationCode', InvitationCodeSchema)
 

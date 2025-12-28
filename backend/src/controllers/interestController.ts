@@ -1,15 +1,28 @@
 import { Request, Response } from 'express'
-import { mockInterests, mockMembers } from '../data/mockData'
+import Interest from '../models/Interest'
+import Member from '../models/Member'
 import { getClubId } from '../utils/club'
 
 export const getInterests = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const enabledInterests = mockInterests
-      .filter(i => i.enabled && (!i.clubId || i.clubId === clubId))
-      .sort((a, b) => a.name.localeCompare(b.name))
+    const interests = await Interest.find({
+      enabled: true,
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
+      .sort({ name: 1 })
+      .lean()
     
-    res.json(enabledInterests)
+    // Convert to API format
+    const formatted = interests.map(i => ({
+      id: i._id.toString(),
+      name: i.name,
+      icon: i.icon,
+      enabled: i.enabled,
+      clubId: i.clubId
+    }))
+    
+    res.json(formatted)
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -18,13 +31,22 @@ export const getInterests = async (req: Request, res: Response) => {
 export const getAllInterests = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const sortedInterests = mockInterests
-      .filter(i => !i.clubId || i.clubId === clubId)
-      .sort((a, b) => 
-        a.name.localeCompare(b.name)
-      )
+    const interests = await Interest.find({
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
+      .sort({ name: 1 })
+      .lean()
     
-    res.json(sortedInterests)
+    // Convert to API format
+    const formatted = interests.map(i => ({
+      id: i._id.toString(),
+      name: i.name,
+      icon: i.icon,
+      enabled: i.enabled,
+      clubId: i.clubId
+    }))
+    
+    res.json(formatted)
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -40,21 +62,29 @@ export const createInterest = async (req: Request, res: Response) => {
     }
     
     // Check if interest already exists
-    if (mockInterests.some(i => i.name.toLowerCase() === name.toLowerCase() && (!i.clubId || i.clubId === clubId))) {
+    const existing = await Interest.findOne({
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
+    
+    if (existing) {
       return res.status(400).json({ message: 'Interest already exists' })
     }
     
-    const newInterest = {
-      id: String(mockInterests.length + 1),
+    const newInterest = await Interest.create({
       name,
       icon,
       enabled: true,
       clubId
-    }
+    })
     
-    mockInterests.push(newInterest)
-    
-    res.status(201).json(newInterest)
+    res.status(201).json({
+      id: newInterest._id.toString(),
+      name: newInterest.name,
+      icon: newInterest.icon,
+      enabled: newInterest.enabled,
+      clubId: newInterest.clubId
+    })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -63,15 +93,25 @@ export const createInterest = async (req: Request, res: Response) => {
 export const updateInterest = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id && (!i.clubId || i.clubId === clubId))
+    const interest = await Interest.findOne({
+      _id: req.params.id,
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
     
-    if (interestIndex === -1) {
+    if (!interest) {
       return res.status(404).json({ message: 'Interest not found' })
     }
     
-    mockInterests[interestIndex] = { ...mockInterests[interestIndex], ...req.body }
+    Object.assign(interest, req.body)
+    await interest.save()
     
-    res.json(mockInterests[interestIndex])
+    res.json({
+      id: interest._id.toString(),
+      name: interest.name,
+      icon: interest.icon,
+      enabled: interest.enabled,
+      clubId: interest.clubId
+    })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -80,36 +120,39 @@ export const updateInterest = async (req: Request, res: Response) => {
 export const deleteInterest = async (req: Request, res: Response) => {
   try {
     const clubId = getClubId(req)
-    const interestIndex = mockInterests.findIndex(i => i.id === req.params.id && (!i.clubId || i.clubId === clubId))
+    const interest = await Interest.findOne({
+      _id: req.params.id,
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
     
-    if (interestIndex === -1) {
+    if (!interest) {
       return res.status(404).json({ message: 'Interest not found' })
     }
     
-    const interestToDelete = mockInterests[interestIndex]
-    
     // Check if any member in this club has this interest
-    const membersWithInterest = mockMembers.filter(member => {
-      if (member.clubId !== clubId) return false
-      return member.interests?.some(interest => interest === interestToDelete.name)
-    })
+    const membersWithInterest = await Member.find({
+      clubId,
+      interests: interest._id
+    }).lean()
     
     if (membersWithInterest.length > 0) {
       return res.status(400).json({ 
-        message: `Cannot delete interest "${interestToDelete.name}" because ${membersWithInterest.length} member${membersWithInterest.length > 1 ? 's' : ''} ${membersWithInterest.length > 1 ? 'have' : 'has'} this interest assigned.`,
+        message: `Cannot delete interest "${interest.name}" because ${membersWithInterest.length} member${membersWithInterest.length > 1 ? 's' : ''} ${membersWithInterest.length > 1 ? 'have' : 'has'} this interest assigned.`,
         memberCount: membersWithInterest.length,
         members: membersWithInterest.map(m => ({
-          id: m.id,
+          id: m._id.toString(),
           name: m.name,
           email: m.email
         }))
       })
     }
     
-    // Hard delete for mock data
-    const [removed] = mockInterests.splice(interestIndex, 1)
+    await Interest.findByIdAndDelete(interest._id)
     
-    res.json({ message: 'Interest deleted successfully', interest: removed })
+    res.json({ message: 'Interest deleted successfully', interest: {
+      id: interest._id.toString(),
+      name: interest.name
+    }})
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
@@ -134,23 +177,26 @@ export const getInterestsByClub = async (req: Request, res: Response) => {
     }
     
     // Get enabled interests for the specified club
-    const interests = mockInterests
-      .filter(i => i.enabled && (!i.clubId || i.clubId === clubId))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(i => ({
-        id: i.id,
-        name: i.name,
-        icon: i.icon,
-        enabled: i.enabled
-      }))
+    const interests = await Interest.find({
+      enabled: true,
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
+    })
+      .sort({ name: 1 })
+      .lean()
+    
+    const formatted = interests.map(i => ({
+      id: i._id.toString(),
+      name: i.name,
+      icon: i.icon,
+      enabled: i.enabled
+    }))
     
     res.json({
       clubId,
-      interests,
-      count: interests.length
+      interests: formatted,
+      count: formatted.length
     })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
 }
-

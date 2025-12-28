@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
-import { mockMembers, type Member } from '../data/mockData'
+import Member from '../models/Member'
+import Interest from '../models/Interest'
 import { getClubId } from '../utils/club'
+import mongoose from 'mongoose'
 
 // Bulk update member status
 export const bulkUpdateStatus = async (req: Request, res: Response) => {
@@ -16,23 +18,38 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid status. Must be active, inactive, or invited.' })
     }
     
-    const updatedMembers: Member[] = []
-    const notFound: string[] = []
+    const validIds = memberIds.filter(id => mongoose.Types.ObjectId.isValid(id))
     
-    memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
-      if (memberIndex !== -1) {
-        mockMembers[memberIndex].status = status as 'active' | 'inactive' | 'invited'
-        updatedMembers.push(mockMembers[memberIndex])
-      } else {
-        notFound.push(id)
+    const result = await Member.updateMany(
+      {
+        _id: { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) },
+        clubId
+      },
+      {
+        $set: { status }
       }
+    )
+    
+    const updatedMembers = await Member.find({
+      _id: { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) },
+      clubId
     })
+      .populate('interests', 'name icon')
+      .lean()
+    
+    const notFound = memberIds.filter(id => 
+      !validIds.includes(id) || !updatedMembers.some(m => m._id.toString() === id)
+    )
     
     res.json({
       success: true,
-      updated: updatedMembers.length,
-      updatedMembers,
+      updated: result.modifiedCount,
+      updatedMembers: updatedMembers.map(m => ({
+        id: m._id.toString(),
+        name: m.name,
+        email: m.email,
+        status: m.status
+      })),
       notFound: notFound.length > 0 ? notFound : undefined
     })
   } catch (error: any) {
@@ -50,26 +67,60 @@ export const bulkAssignInterests = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid request. memberIds and interests must be arrays.' })
     }
     
-    const updatedMembers: Member[] = []
-    const notFound: string[] = []
-    
-    memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
-      if (memberIndex !== -1) {
-        // Merge interests, avoiding duplicates
-        const existingInterests = mockMembers[memberIndex].interests || []
-        const newInterests = [...new Set([...existingInterests, ...interests])]
-        mockMembers[memberIndex].interests = newInterests
-        updatedMembers.push(mockMembers[memberIndex])
-      } else {
-        notFound.push(id)
-      }
+    // Convert interest names to ObjectIds
+    const interestDocs = await Interest.find({
+      name: { $in: interests },
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
     })
+    const interestIds = interestDocs.map(i => i._id)
+    
+    if (interestIds.length === 0) {
+      return res.status(400).json({ message: 'No valid interests found' })
+    }
+    
+    const validIds = memberIds.filter(id => mongoose.Types.ObjectId.isValid(id))
+    
+    // Get current members and update their interests
+    const members = await Member.find({
+      _id: { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) },
+      clubId
+    })
+    
+    const updatedMembers: any[] = []
+    for (const member of members) {
+      // Merge interests, avoiding duplicates
+      const existingInterestIds = member.interests.map(id => id.toString())
+      const newInterestIds = interestIds
+        .filter(id => !existingInterestIds.includes(id.toString()))
+        .map(id => id)
+      
+      if (newInterestIds.length > 0) {
+        member.interests.push(...newInterestIds)
+        await member.save()
+      }
+      
+      const updated = await Member.findById(member._id)
+        .populate('interests', 'name icon')
+        .lean()
+      
+      updatedMembers.push(updated)
+    }
+    
+    const notFound = memberIds.filter(id => 
+      !validIds.includes(id) || !updatedMembers.some(m => m!._id.toString() === id)
+    )
     
     res.json({
       success: true,
       updated: updatedMembers.length,
-      updatedMembers,
+      updatedMembers: updatedMembers.map(m => ({
+        id: m!._id.toString(),
+        name: m!.name,
+        email: m!.email,
+        interests: (m!.interests || []).map((i: any) => 
+          typeof i === 'object' ? i.name : i
+        )
+      })),
       notFound: notFound.length > 0 ? notFound : undefined
     })
   } catch (error: any) {
@@ -87,25 +138,50 @@ export const bulkRemoveInterests = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid request. memberIds and interests must be arrays.' })
     }
     
-    const updatedMembers: Member[] = []
-    const notFound: string[] = []
-    
-    memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
-      if (memberIndex !== -1) {
-        mockMembers[memberIndex].interests = mockMembers[memberIndex].interests.filter(
-          i => !interests.includes(i)
-        )
-        updatedMembers.push(mockMembers[memberIndex])
-      } else {
-        notFound.push(id)
-      }
+    // Convert interest names to ObjectIds
+    const interestDocs = await Interest.find({
+      name: { $in: interests },
+      $or: [{ clubId: clubId }, { clubId: { $exists: false } }]
     })
+    const interestIds = interestDocs.map(i => i._id.toString())
+    
+    const validIds = memberIds.filter(id => mongoose.Types.ObjectId.isValid(id))
+    
+    // Get current members and remove interests
+    const members = await Member.find({
+      _id: { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) },
+      clubId
+    })
+    
+    const updatedMembers: any[] = []
+    for (const member of members) {
+      member.interests = member.interests.filter(
+        (id: any) => !interestIds.includes(id.toString())
+      )
+      await member.save()
+      
+      const updated = await Member.findById(member._id)
+        .populate('interests', 'name icon')
+        .lean()
+      
+      updatedMembers.push(updated)
+    }
+    
+    const notFound = memberIds.filter(id => 
+      !validIds.includes(id) || !updatedMembers.some(m => m!._id.toString() === id)
+    )
     
     res.json({
       success: true,
       updated: updatedMembers.length,
-      updatedMembers,
+      updatedMembers: updatedMembers.map(m => ({
+        id: m!._id.toString(),
+        name: m!.name,
+        email: m!.email,
+        interests: (m!.interests || []).map((i: any) => 
+          typeof i === 'object' ? i.name : i
+        )
+      })),
       notFound: notFound.length > 0 ? notFound : undefined
     })
   } catch (error: any) {
@@ -123,27 +199,22 @@ export const bulkDeleteMembers = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid request. memberIds must be an array.' })
     }
     
-    const deleted: string[] = []
-    const notFound: string[] = []
+    const validIds = memberIds.filter(id => mongoose.Types.ObjectId.isValid(id))
     
-    memberIds.forEach((id: string) => {
-      const memberIndex = mockMembers.findIndex(m => m.id === id && m.clubId === clubId)
-      if (memberIndex !== -1) {
-        mockMembers.splice(memberIndex, 1)
-        deleted.push(id)
-      } else {
-        notFound.push(id)
-      }
+    const result = await Member.deleteMany({
+      _id: { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) },
+      clubId
     })
+    
+    const notFound = memberIds.filter(id => !validIds.includes(id))
     
     res.json({
       success: true,
-      deleted: deleted.length,
-      deletedIds: deleted,
+      deleted: result.deletedCount,
+      deletedIds: validIds,
       notFound: notFound.length > 0 ? notFound : undefined
     })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
 }
-

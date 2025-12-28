@@ -12,7 +12,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build",
+    "test:db": "tsx src/scripts/test-connection.ts",
+    "migrate:demo": "tsx src/scripts/migrate-demo-data.ts",
+    "verify:data": "tsx src/scripts/verify-data.ts",
+    "fix:admins": "tsx src/scripts/fix-admins.ts"
   },
   "keywords": [],
   "author": "",

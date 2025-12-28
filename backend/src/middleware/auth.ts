@@ -15,7 +15,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
-    const admin = await Admin.findById(decoded.adminId).select('-password')
+    const admin = await Admin.findById(decoded.adminId || decoded._id).select('-password')
     
     if (!admin) {
       return res.status(401).json({ message: 'Invalid token' })

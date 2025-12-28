@@ -3,6 +3,22 @@
 // Or use absolute URL from env var (for separate frontend/backend deployments)
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
+// Get the base URL for API requests
+// In development, if API_BASE_URL is relative, use localhost:3000
+// In production, use the relative path (same domain)
+const getApiBaseUrl = (): string => {
+  if (API_BASE_URL.startsWith('http')) {
+    return API_BASE_URL
+  }
+  
+  // In development mode, if using relative path, point to backend server
+  if (import.meta.env.DEV && window.location.port === '5173') {
+    return 'http://localhost:3000/api'
+  }
+  
+  return API_BASE_URL
+}
+
 const getClubId = () => {
   const stored = localStorage.getItem('clubId')
   return stored ? Number(stored) : 1
@@ -16,8 +32,12 @@ export const httpService = {
   async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = localStorage.getItem('authToken')
     const clubId = getClubId()
+    const baseUrl = getApiBaseUrl()
 
-    const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
+    const url = baseUrl.startsWith('http')
+      ? new URL(`${baseUrl}${endpoint}`)
+      : new URL(`${baseUrl}${endpoint}`, window.location.origin)
+    
     if (clubId && !url.searchParams.has('clubId')) {
       url.searchParams.set('clubId', String(clubId))
     }
@@ -47,8 +67,12 @@ export const httpService = {
    */
   async requestWithoutAuth<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const clubId = getClubId()
+    const baseUrl = getApiBaseUrl()
 
-    const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
+    const url = baseUrl.startsWith('http')
+      ? new URL(`${baseUrl}${endpoint}`)
+      : new URL(`${baseUrl}${endpoint}`, window.location.origin)
+    
     if (clubId && !url.searchParams.has('clubId')) {
       url.searchParams.set('clubId', String(clubId))
     }
@@ -85,7 +109,11 @@ async function uploadFile(file: File): Promise<{ path: string; filename: string 
   const formData = new FormData()
   formData.append('image', file)
 
-  const url = new URL(`${API_BASE_URL}/upload/image`, window.location.origin)
+  const baseUrl = getApiBaseUrl()
+  const url = baseUrl.startsWith('http')
+    ? new URL(`${baseUrl}/upload/image`)
+    : new URL(`${baseUrl}/upload/image`, window.location.origin)
+  
   if (clubId) {
     url.searchParams.set('clubId', String(clubId))
   }
@@ -106,20 +134,21 @@ async function uploadFile(file: File): Promise<{ path: string; filename: string 
 
   const result = await response.json()
   // Return full URL path - use the path from server which is relative to uploads root
-  // If API_BASE_URL is relative (/api), baseUrl will be empty (root)
+  // If API_BASE_URL is relative (/api), uploadBaseUrl will be empty (root)
   // If API_BASE_URL is absolute (http://...), extract the origin
-  let baseUrl = ''
-  if (API_BASE_URL.startsWith('http')) {
+  let uploadBaseUrl = ''
+  const apiBaseUrl = getApiBaseUrl()
+  if (apiBaseUrl.startsWith('http')) {
     try {
-      const apiUrl = new URL(API_BASE_URL)
-      baseUrl = apiUrl.origin
+      const apiUrl = new URL(apiBaseUrl)
+      uploadBaseUrl = apiUrl.origin
     } catch {
-      baseUrl = ''
+      uploadBaseUrl = ''
     }
   }
   // The server returns path like /uploads/images/filename.jpg
   return {
-    path: `${baseUrl}${result.path}`,
+    path: `${uploadBaseUrl}${result.path}`,
     filename: result.filename
   }
 }

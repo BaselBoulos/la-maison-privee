@@ -14,4 +14,5 @@ uploads/*
 *.swo
 .vscode/
 .idea/
+runtimeData.json
 

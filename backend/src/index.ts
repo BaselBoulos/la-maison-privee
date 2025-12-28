@@ -113,27 +113,14 @@ app.get('*', (req, res) => {
 
 // Start server
 const startServer = async () => {
-  try {
-    // Try to connect to database, but don't fail if it doesn't work (using mock data)
-    await connectDatabase()
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`)
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
-      if (process.env.SKIP_DB === 'true' || !process.env.MONGODB_URI) {
-        console.log(`📦 Using mock data (database connection skipped)`)
-      } else {
-        console.log(`📦 Connected to database`)
-      }
-    })
-  } catch (error) {
-    // Even if database connection fails, start server with mock data
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`)
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
-      console.log(`📦 Using mock data (database connection failed)`)
-    })
-  }
+  // Connect to database (required)
+  await connectDatabase()
+  
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`)
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
+    console.log(`📦 Connected to database`)
+  })
 }
 
 startServer()

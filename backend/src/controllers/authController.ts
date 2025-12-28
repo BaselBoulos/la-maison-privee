@@ -1,60 +1,16 @@
 import { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { mockClubs } from '../data/mockData'
-import {
-  addRuntimeAdmin,
-  addRuntimeClub,
-  mergedAdmins,
-  mergedClubs,
-  getRuntimeData,
-  saveRuntimeData
-} from '../data/runtimeStore'
+import Admin from '../models/Admin'
+import Club from '../models/Club'
+import bcrypt from 'bcryptjs'
 
 type AdminRole = 'super' | 'club'
 
-const generateToken = (adminId: number, role: AdminRole, clubId?: number, allowedClubIds?: number[]): string => {
+const generateToken = (adminId: string, role: AdminRole, clubId?: number, allowedClubIds?: number[]): string => {
   return jwt.sign({ adminId, role, clubId, allowedClubIds }, process.env.JWT_SECRET || 'fallback-secret', {
     expiresIn: '7d'
   })
 }
-
-// Mock admins for demo purposes
-const MOCK_ADMINS: Array<{
-  id: number
-  email: string
-  password: string
-  name: string
-  role: AdminRole
-  clubId?: number
-  allowedClubIds?: number[]
-}> = [
-  {
-    id: 1,
-    email: 'super@lamaisonprivee.com',
-    password: 'admin123',
-    name: 'Super Admin',
-    role: 'super',
-    allowedClubIds: [1, 2, 3]
-  },
-  {
-    id: 2,
-    email: 'lmp.admin@lamaisonprivee.com',
-    password: 'admin123',
-    name: 'LMP Admin',
-    role: 'club',
-    clubId: 1,
-    allowedClubIds: [1]
-  },
-  {
-    id: 3,
-    email: 'dxb.admin@gulfprivee.com',
-    password: 'admin123',
-    name: 'Gulf Privée Admin',
-    role: 'club',
-    clubId: 2,
-    allowedClubIds: [2, 3]
-  }
-]
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -64,33 +20,68 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and password are required' })
     }
     
-    // Check against mock admins
-    const admins = mergedAdmins(MOCK_ADMINS)
-    const clubs = mergedClubs(mockClubs)
-
-    const adminMatch = admins.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === password)
-    if (!adminMatch) {
+    // Find admin by email
+    const admin = await Admin.findOne({ email: email.toLowerCase() })
+    
+    if (!admin) {
+      console.error('[AUTH] Admin not found:', email.toLowerCase())
       return res.status(401).json({ message: 'Invalid credentials' })
     }
     
-    const superAdminAllowed = adminMatch.role === 'super' ? clubs.map(c => c.id) : adminMatch.allowedClubIds
-    const token = generateToken(adminMatch.id, adminMatch.role, adminMatch.clubId, superAdminAllowed)
-    const club = adminMatch.clubId ? clubs.find(c => c.id === (adminMatch.clubId as number)) : undefined
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, admin.password)
+    if (!isValidPassword) {
+      console.error('[AUTH] Invalid password for:', email.toLowerCase())
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
+    
+    // Ensure admin has role (migration might have missed it)
+    if (!admin.role) {
+      console.warn('[AUTH] Admin missing role, setting default:', email.toLowerCase())
+      admin.role = 'club'
+      await admin.save()
+    }
+    
+    // Get all clubs for super admin, or specific club for club admin
+    const clubs = await Club.find().sort({ id: 1 }).lean()
+    const adminRole = admin.role || 'club'
+    const superAdminAllowed = adminRole === 'super' 
+      ? clubs.map(c => c.id) 
+      : admin.allowedClubIds || []
+    
+    const token = generateToken(
+      admin._id.toString(), 
+      adminRole, 
+      admin.clubId, 
+      superAdminAllowed
+    )
+    
+    const club = admin.clubId 
+      ? clubs.find(c => c.id === admin.clubId) 
+      : undefined
     
     res.json({
       token,
       admin: {
-        id: adminMatch.id,
-        email: adminMatch.email,
-        name: adminMatch.name,
-        role: adminMatch.role,
-        clubId: adminMatch.clubId,
+        id: admin._id.toString(),
+        email: admin.email,
+        name: admin.name,
+        role: adminRole,
+        clubId: admin.clubId,
         allowedClubIds: superAdminAllowed
       },
-      club
+      club: club ? {
+        id: club.id,
+        name: club.name,
+        slug: club.slug,
+        theme: club.theme,
+        locale: club.locale,
+        currency: club.currency
+      } : undefined
     })
   } catch (error: any) {
-    res.status(500).json({ message: error.message })
+    console.error('[AUTH] Login error:', error)
+    res.status(500).json({ message: error.message || 'Login failed' })
   }
 }
 
@@ -102,68 +93,76 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Name, email, password, and clubName are required' })
     }
     
-    const admins = mergedAdmins(MOCK_ADMINS)
-    const clubs = mergedClubs(mockClubs)
-    
-    if (admins.some(a => a.email.toLowerCase() === email.toLowerCase())) {
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({ email: email.toLowerCase() })
+    if (existingAdmin) {
       return res.status(400).json({ message: 'Admin already exists' })
     }
     
-    const nextClubId = Math.max(...clubs.map(c => c.id), 0) + 1
+    // Get next club ID
+    const clubs = await Club.find().sort({ id: -1 }).limit(1).lean()
+    const nextClubId = clubs.length > 0 ? clubs[0].id + 1 : 1
+    
     const slug = (clubSlug || clubName || 'club')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || `club-${nextClubId}`
-
-    const newClub = {
+    
+    // Create new club
+    const newClub = await Club.create({
       id: nextClubId,
       name: clubName,
       slug,
       theme: { primary: '#d4af37', accent: '#8b2635', logo: '' },
       locale: 'en-IL',
       currency: 'ILS'
-    }
-    addRuntimeClub(newClub)
-
-    const nextAdminId = Math.max(...admins.map(a => a.id), 0) + 1
-    const newAdmin = {
-      id: nextAdminId,
-      email,
-      password,
+    })
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10)
+    
+    // Create new admin
+    const newAdmin = await Admin.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
       name,
-      role: 'club' as AdminRole,
+      role: 'club',
       clubId: nextClubId,
       allowedClubIds: [nextClubId]
-    }
-    addRuntimeAdmin(newAdmin)
-
-    const superAdminAllowed = mergedClubs(mockClubs).map(c => c.id)
-    // Update runtime super admins allowed list for future logins
-    const runtime = getRuntimeData()
-    if (runtime.admins && Array.isArray(runtime.admins)) {
-      runtime.admins = runtime.admins.map(a =>
-        a.role === 'super' ? { ...a, allowedClubIds: superAdminAllowed } : a
-      )
-      saveRuntimeData(runtime)
-    }
+    })
     
-    const token = generateToken(newAdmin.id, newAdmin.role, newAdmin.clubId, newAdmin.allowedClubIds)
+    // Get all clubs for token
+    const allClubs = await Club.find().sort({ id: 1 }).lean()
+    const superAdminAllowed = allClubs.map(c => c.id)
+    
+    const token = generateToken(
+      newAdmin._id.toString(), 
+      newAdmin.role, 
+      newAdmin.clubId, 
+      newAdmin.allowedClubIds
+    )
     
     res.status(201).json({
       token,
       admin: {
-        id: newAdmin.id,
+        id: newAdmin._id.toString(),
         email: newAdmin.email,
         name: newAdmin.name,
         role: newAdmin.role,
         clubId: newAdmin.clubId,
         allowedClubIds: newAdmin.allowedClubIds
       },
-      club: newClub,
+      club: {
+        id: newClub.id,
+        name: newClub.name,
+        slug: newClub.slug,
+        theme: newClub.theme,
+        locale: newClub.locale,
+        currency: newClub.currency
+      },
       onboardingRequired: false
     })
   } catch (error: any) {
     res.status(500).json({ message: error.message })
   }
 }
-
